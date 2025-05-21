@@ -1,0 +1,281 @@
+swagger: "2.0"
+info:
+  description: "API for managing user submissions, problem viewing, and execution."
+  version: "1.0.0"
+  title: "Programming Problem API"
+securityDefinitions:
+  BearerAuth:
+    type: "apiKey"
+    in: "header"
+    name: "Authorization"
+    description: "Bearer token for authentication (e.g. 'Bearer <token>')"
+
+paths:
+  /health:
+    get:
+      summary: "Health check endpoint"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "The service is healthy"
+          schema:
+            type: string
+            example: "healthy"
+          
+  /problems:
+    get:
+      summary: "Retrieve all problems for the authenticated user"
+      operationId: "getProblems"
+      tags:
+        - "Problems"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "List of problems"
+          schema:
+            type: array
+            items:
+              $ref: "#/definitions/ProblemInfo"
+        401:
+          description: "Unauthorized"
+        500:
+          description: "Internal Server Error"
+          
+  /problems/{problemId}:
+    get:
+      summary: "Retrieve problem details for a given problem ID"
+      operationId: "viewProblem"
+      tags:
+        - "Problems"
+      parameters:
+        - name: "problemId"
+          in: "path"
+          required: true
+          type: "integer"
+          description: "ID of the problem"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "Problem details"
+          schema:
+            $ref: "#/definitions/ProblemDetail"
+        400:
+          description: "Invalid problem ID"
+        404:
+          description: "Problem not found"
+        500:
+          description: "Internal Server Error"
+        
+  /problems/{problemId}/run:
+    post:
+      summary: "Run the code against the problem's test cases"
+      operationId: "runCode"
+      tags:
+        - "Submissions"
+      parameters:
+        - name: "problemId"
+          in: "path"
+          required: true
+          type: "integer"
+          description: "ID of the problem"
+        - name: "payload"
+          in: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/SubmissionPayload"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "Run ID"
+          schema:
+            type: object
+            properties:
+              run_id:
+                type: integer
+        400:
+          description: "Invalid payload"
+        500:
+          description: "Internal Server Error"
+        
+  /problems/{problemId}/submit:
+    post:
+      summary: "Submit code for the problem"
+      operationId: "submitCode"
+      tags:
+        - "Submissions"
+      parameters:
+        - name: "problemId"
+          in: "path"
+          required: true
+          type: "integer"
+          description: "ID of the problem"
+        - name: "payload"
+          in: "body"
+          required: true
+          schema:
+            $ref: "#/definitions/SubmissionPayload"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "Submission ID"
+          schema:
+            type: object
+            properties:
+              submission_id:
+                type: integer
+        400:
+          description: "Invalid payload"
+        500:
+          description: "Internal Server Error"
+  
+  /submissions/{submissionId}:
+    get:
+      summary: "Get the result of a specific submission"
+      operationId: "getSubmissionResult"
+      tags:
+        - "Submissions"
+      parameters:
+        - name: "submissionId"
+          in: "path"
+          required: true
+          type: "integer"
+          description: "ID of the submission"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "Submission result"
+          schema:
+            $ref: "#/definitions/SubmissionResult"
+        404:
+          description: "Submission not found"
+        500:
+          description: "Internal Server Error"
+  
+  /runs/{runId}:
+    get:
+      summary: "Get the result of a specific run"
+      operationId: "getRunResult"
+      tags:
+        - "Submissions"
+      parameters:
+        - name: "runId"
+          in: "path"
+          required: true
+          type: "integer"
+          description: "ID of the run"
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: "Run result"
+          schema:
+            $ref: "#/definitions/RunResult"
+        404:
+          description: "Run not found"
+        500:
+          description: "Internal Server Error"
+
+definitions:
+  ProblemInfo:
+    type: object
+    properties:
+      id:
+        type: integer
+      title:
+        type: string
+      is_solved:
+        type: boolean
+      difficulty:
+        $ref: "#/definitions/Difficulty"
+      tags:
+        type: array
+        items:
+          $ref: "#/definitions/Tag"
+      acceptance_rate:
+        type: integer
+
+  ProblemDetail:
+    allOf:
+      - $ref: "#/definitions/ProblemInfo"
+      - type: object
+        properties:
+          description:
+            type: string
+          examples:
+            type: array
+            items:
+              $ref: "#/definitions/ProblemExample"
+          constraints:
+            type: string
+
+  ProblemExample:
+    type: object
+    properties:
+      id:
+        type: integer
+      input:
+        type: string
+      output:
+        type: string
+      explanation:
+        type: string
+
+  SubmissionPayload:
+    type: object
+    properties:
+      language_id:
+        type: integer
+      code:
+        type: string
+      test_cases:
+        type: array
+        items:
+          type: string
+
+  SubmissionResult:
+    type: object
+    properties:
+      id:
+        type: integer
+      verdict:
+        type: string
+      runtime_ms:
+        type: integer
+      memory_kb:
+        type: integer
+      message:
+        type: string
+
+  RunResult:
+    allOf:
+      - $ref: "#/definitions/SubmissionResult"
+      - type: object
+        properties:
+          input:
+            type: string
+          output:
+            type: string
+          expected_output:
+            type: string
+
+  Tag:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+
+  Difficulty:
+    type: object
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
