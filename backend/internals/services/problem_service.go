@@ -2,6 +2,7 @@ package services
 
 import (
 	"algo-arena-be/internals/repo"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -21,6 +22,7 @@ func (s *problemService) GetProblems(w http.ResponseWriter, r *http.Request) {
 
 	problems, err := s.repo.GetProblems(r.Context(), userID)
 	if err != nil {
+		log.Println("Failed to fetch problems: ", err)
 		http.Error(w, "Failed to fetch problems", http.StatusInternalServerError)
 		return
 	}
@@ -44,6 +46,7 @@ func (s *problemService) ViewProblem(w http.ResponseWriter, r *http.Request) {
 
 	problem, err := s.repo.ViewProblem(r.Context(), userID, problemID)
 	if err != nil {
+		log.Println("Failed to fetch problem: ", err)
 		http.Error(w, "Failed to fetch problem", http.StatusInternalServerError)
 		return
 	}

@@ -46,13 +46,16 @@ func (r *problemRepo) GetProblems(ctx context.Context, userId int) ([]models.Pro
 	for rows.Next() {
 		var p models.ProblemInfo
 		var difficulty models.Difficulty
+		accRate := 0.0
 		err := rows.Scan(
-			&p.ID, &p.Title, &p.AcceptanceRate,
+			&p.ID, &p.Title, &accRate,
 			&difficulty.ID, &difficulty.Name, &p.IsSolved,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scanning problem row: %w", err)
 		}
+
+		p.AcceptanceRate = int(accRate * 100)
 		p.Difficulty = difficulty
 		p.Tags = []models.Tag{} // not loading tags here for performance
 		problems = append(problems, p)
@@ -85,9 +88,11 @@ func (r *problemRepo) ViewProblem(ctx context.Context, userId, problemId int) (*
 	var detail models.ProblemDetail
 	var difficulty models.Difficulty
 
+	accRate := 0.0
+
 	err := r.db.QueryRowContext(ctx, query, userId, acceptedStatus, problemId).Scan(
 		&detail.ID, &detail.Title, &detail.Description,
-		&detail.AcceptanceRate, &detail.Constraints,
+		&accRate, &detail.Constraints,
 		&difficulty.ID, &difficulty.Name, &detail.IsSolved,
 	)
 	// if err == sql.ErrNoRows {
@@ -96,6 +101,8 @@ func (r *problemRepo) ViewProblem(ctx context.Context, userId, problemId int) (*
 	if err != nil {
 		return nil, fmt.Errorf("fetching problem detail: %w", err)
 	}
+
+	detail.AcceptanceRate = int(accRate * 100)
 
 	detail.Difficulty = difficulty
 

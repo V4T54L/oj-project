@@ -1,6 +1,7 @@
 package services
 
 import (
+	"algo-arena-be/internals/models"
 	"algo-arena-be/internals/repo"
 	"database/sql"
 	"encoding/json"
@@ -19,7 +20,11 @@ type SubmissionService interface {
 	SubmitCode(w http.ResponseWriter, r *http.Request)
 }
 
-func withUserID(r *http.Request) (int, bool) {
+type ExecutionService interface {
+	Execute(payload models.ExecutionPayload) (models.ExecutionResponse, error)
+}
+
+func withUserID(_ *http.Request) (int, bool) {
 	id, ok := 1, true
 	// id, ok := r.Context().Value(userIDKey).(int)
 	return id, ok
@@ -37,5 +42,7 @@ func GetServices(db *sql.DB) (ProblemService, SubmissionService, error) {
 		return nil, nil, err
 	}
 
-	return &problemService{repo: pR}, &submissionService{repo: sR}, nil
+	execService := executionService{}
+
+	return &problemService{repo: pR}, &submissionService{repo: sR, executeFunc: execService.Execute}, nil
 }

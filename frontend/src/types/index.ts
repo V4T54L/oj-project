@@ -36,7 +36,7 @@ export type ProblemDetail = {
 
 export type SubmissionResult = {
     id: number
-    Verdict: string
+    verdict: string
     runtime_ms: number
     memory_kb: number
     message: string
@@ -52,6 +52,7 @@ export type TestCaseResult = SubmissionResult & {
 export type TestCase = {
     id: number
     input: string
+    expected_output: string
 }
 
 export type SubmissionPayload = {

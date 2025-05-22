@@ -22,7 +22,7 @@ paths:
           schema:
             type: string
             example: "healthy"
-          
+
   /problems:
     get:
       summary: "Retrieve all problems for the authenticated user"
@@ -42,7 +42,7 @@ paths:
           description: "Unauthorized"
         500:
           description: "Internal Server Error"
-          
+
   /problems/{problemId}:
     get:
       summary: "Retrieve problem details for a given problem ID"
@@ -68,7 +68,7 @@ paths:
           description: "Problem not found"
         500:
           description: "Internal Server Error"
-        
+
   /problems/{problemId}/run:
     post:
       summary: "Run the code against the problem's test cases"
@@ -100,7 +100,7 @@ paths:
           description: "Invalid payload"
         500:
           description: "Internal Server Error"
-        
+
   /problems/{problemId}/submit:
     post:
       summary: "Submit code for the problem"
@@ -132,7 +132,7 @@ paths:
           description: "Invalid payload"
         500:
           description: "Internal Server Error"
-  
+
   /submissions/{submissionId}:
     get:
       summary: "Get the result of a specific submission"
@@ -156,7 +156,7 @@ paths:
           description: "Submission not found"
         500:
           description: "Internal Server Error"
-  
+
   /runs/{runId}:
     get:
       summary: "Get the result of a specific run"
@@ -236,7 +236,17 @@ definitions:
       test_cases:
         type: array
         items:
-          type: string
+          $ref: "#/definitions/TestCase"
+
+  TestCase:
+    type: object
+    properties:
+      id:
+        type: integer
+      input:
+        type: string
+      expected_output:
+        type: string
 
   SubmissionResult:
     type: object
