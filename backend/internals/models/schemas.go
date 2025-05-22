@@ -54,7 +54,28 @@ type RunResult struct {
 }
 
 type SubmissionPayload struct {
-	LanguageID int      `json:"language_id"`
-	Code       string   `json:"code"`
-	TestCases  []string `json:"test_cases"`
+	LanguageID int        `json:"language_id"`
+	Code       string     `json:"code"`
+	TestCases  []TestCase `json:"test_cases"`
 }
+
+type TestCase struct {
+	ID             int    `json:"id"`
+	Input          string `json:"input"`
+	ExpectedOutput string `json:"expected_output"`
+}
+
+type ExecutionPayload struct {
+	Code         string     `json:"code"`
+	MemoryLimit  int        `json:"memory_limit_kb"`
+	RuntimeLimit int        `json:"runtime_limit_ms"`
+	TestCases    []TestCase `json:"test_cases"`
+}
+
+type ExecutionTestResult struct {
+	Status    string `json:"status"`
+	RuntimeMs int    `json:"runtime_ms"`
+	MemoryKb  int    `json:"memory_kb"`
+}
+
+type ExecutionResponse []ExecutionTestResult

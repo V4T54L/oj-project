@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
-import { problemInfos } from "../mock";
+import { useState, useMemo, useEffect } from "react";
+import type { ProblemInfo } from "../types"
 import { NavLink } from "react-router-dom";
+import { getProblems } from "../api/problems";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -16,9 +17,10 @@ export default function ProblemListPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState("");
     const [sortOption, setSortOption] = useState<SortOption>("title-asc");
+    const [problems, setProblems] = useState<ProblemInfo[]>([]);
 
     const filteredProblems = useMemo(() => {
-        const filtered = problemInfos.filter((problem) =>
+        const filtered = problems.filter((problem) =>
             problem.title.toLowerCase().includes(searchTerm.toLowerCase())
         );
 
@@ -55,6 +57,19 @@ export default function ProblemListPage() {
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) setCurrentPage(page);
     };
+
+    useEffect(() => {
+        const fetchProblems = async () => {
+            try {
+                const fetchedProblems = await getProblems();
+                setProblems(fetchedProblems)
+            } catch (error: any) {
+                console.log("Error fetching the problems:", error)
+            }
+        }
+
+        fetchProblems();
+    }, [])
 
     return (
         <div className="bg-gray-900 text-white min-h-screen px-4 py-8 md:px-16">

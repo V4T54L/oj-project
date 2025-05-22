@@ -7,8 +7,8 @@ import (
 )
 
 func MigratePostgres(ctx context.Context, db *sql.DB) error {
-	query := schemaQuery + seedingQuery + devQuery
-	// _ = seedingQuery // skipping seeding the database for prod
+	query := schemaQuery        // + seedingQuery + devQuery
+	_ = seedingQuery + devQuery // skipping seeding the database for prod
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 

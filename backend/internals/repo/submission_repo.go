@@ -4,12 +4,14 @@ import (
 	"algo-arena-be/internals/models"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
 
 type submissionRepo struct {
-	db *sql.DB
+	db   *sql.DB
+	runs map[int]*models.SubmissionResult
 }
 
 // const statusAccepted = "Accepted"
@@ -45,56 +47,67 @@ func (r *submissionRepo) GetSubmissionResult(ctx context.Context, userId, submis
 
 // GetRunResult retrieves a simulated run result, joined with test input/output.
 func (r *submissionRepo) GetRunResult(ctx context.Context, userId, runId int) (*models.RunResult, error) {
-	ctx, cancel := context.WithTimeout(ctx, maxQuerySeconds*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(ctx, maxQuerySeconds*time.Second)
+	// defer cancel()
 
-	query := `
-		SELECT cs.id, s.name, cs.runtime_ms, cs.memory_kb, cs.message,
-		       ht.input, cs.code AS output, ht.expected_output
-		FROM code_submissions cs
-		JOIN status_ids s ON cs.status_id = s.id
-		JOIN hidden_test_cases ht ON ht.problem_id = cs.problem_id
-		WHERE cs.id = $1 AND cs.user_id = $2
-		LIMIT 1
-	`
+	// query := `
+	// 	SELECT cs.id, s.name, cs.runtime_ms, cs.memory_kb, cs.message,
+	// 	       ht.input, cs.code AS output, ht.expected_output
+	// 	FROM code_submissions cs
+	// 	JOIN status_ids s ON cs.status_id = s.id
+	// 	JOIN hidden_test_cases ht ON ht.problem_id = cs.problem_id
+	// 	WHERE cs.id = $1 AND cs.user_id = $2
+	// 	LIMIT 1
+	// `
 
-	var result models.RunResult
-	err := r.db.QueryRowContext(ctx, query, runId, userId).Scan(
-		&result.ID, &result.Verdict, &result.RuntimeMS, &result.MemoryKB, &result.Message,
-		&result.Input, &result.Output, &result.ExpectedOutput,
-	)
-	// if err == sql.ErrNoRows {
-	// 	return nil, nil
+	// var result models.RunResult
+	// err := r.db.QueryRowContext(ctx, query, runId, userId).Scan(
+	// 	&result.ID, &result.Verdict, &result.RuntimeMS, &result.MemoryKB, &result.Message,
+	// 	&result.Input, &result.Output, &result.ExpectedOutput,
+	// )
+	// // if err == sql.ErrNoRows {
+	// // 	return nil, nil
+	// // }
+	// if err != nil {
+	// 	return nil, fmt.Errorf("GetRunResult: %w", err)
 	// }
-	if err != nil {
-		return nil, fmt.Errorf("GetRunResult: %w", err)
+
+	result, ok := r.runs[runId]
+	if !ok {
+		return nil, errors.New("run not found")
 	}
 
-	return &result, nil
+	// return &result, nil
+	return &models.RunResult{
+		SubmissionResult: *result,
+	}, nil
 }
 
 // RunCode inserts a temporary submission record for simulated runs (no judge).
-func (r *submissionRepo) RunCode(ctx context.Context, userId, problemId, languageId int, code string, inputs []string) (int, error) {
-	// In a real system, delegate this to an async execution engine
-	statusID, err := r.getStatusID(ctx, statusPending)
-	if err != nil {
-		return 0, err
-	}
+func (r *submissionRepo) RunCode(ctx context.Context, userId, problemId, languageId int, code string, testCases []models.TestCase) (int, error) {
+	// // In a real system, delegate this to an async execution engine
+	// statusID, err := r.getStatusID(ctx, statusPending)
+	// if err != nil {
+	// 	return 0, err
+	// }
 
-	ctx, cancel := context.WithTimeout(ctx, maxQuerySeconds*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(ctx, maxQuerySeconds*time.Second)
+	// defer cancel()
 
-	query := `
-		INSERT INTO code_submissions (user_id, problem_id, language_id, code, status_id, message)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id
-	`
+	// query := `
+	// 	INSERT INTO code_submissions (user_id, problem_id, language_id, code, status_id, message)
+	// 	VALUES ($1, $2, $3, $4, $5, $6)
+	// 	RETURNING id
+	// `
 
-	var runID int
-	err = r.db.QueryRowContext(ctx, query, userId, problemId, languageId, code, statusID, "Code run queued").Scan(&runID)
-	if err != nil {
-		return 0, fmt.Errorf("RunCode: %w", err)
-	}
+	// var runID int
+	// err = r.db.QueryRowContext(ctx, query, userId, problemId, languageId, code, statusID, "Code run queued").Scan(&runID)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("RunCode: %w", err)
+	// }
+
+	runID := len(r.runs) + 1
+	r.runs[runID] = nil
 
 	return runID, nil
 }
@@ -127,7 +140,9 @@ func (r *submissionRepo) SubmitCode(ctx context.Context, userId, problemId, lang
 
 // AddRunResult updates an existing code run submission with results.
 func (r *submissionRepo) AddRunResult(ctx context.Context, result *models.RunResult) error {
-	return r.updateSubmission(ctx, result.ID, result.Verdict, result.RuntimeMS, result.MemoryKB, result.Message)
+	// return r.updateSubmission(ctx, result.ID, result.Verdict, result.RuntimeMS, result.MemoryKB, result.Message)
+	r.runs[result.SubmissionResult.ID] = &result.SubmissionResult
+	return nil
 }
 
 // AddSubmissionResult updates a real submission with verdict + results.
