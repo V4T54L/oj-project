@@ -21,8 +21,8 @@ var ProgrammingLanguages = []models.ProgrammingLanguage{
 }
 
 var ExampleCases = []models.ProblemExamples{
-	{ID: 1, Input: "[2,7,11,15], target=9", ExpectedOutput: "[0,1]", Explaination: "nums[0] + nums[1] == 9"},
-	{ID: 2, Input: "[3,2,4], target=6", ExpectedOutput: "[1,2]", Explaination: "nums[1] + nums[2] == 6"},
+	{ID: 1, Input: "[2,7,11,15], target=9", ExpectedOutput: "[0,1]", Explanation: "nums[0] + nums[1] == 9"},
+	{ID: 2, Input: "[3,2,4], target=6", ExpectedOutput: "[1,2]", Explanation: "nums[1] + nums[2] == 6"},
 }
 
 var TestCases = []models.ProblemTestCase{
@@ -35,6 +35,7 @@ var ProblemsDB = []models.ProblemDB{
 		ID:                 101,
 		Title:              "Two Sum",
 		Description:        "Given an array of integers, return indices of the two numbers such that they add up to a specific target.",
+		Constraints:        []string{"0<len(arr)<1000"},
 		Slug:               "two-sum",
 		Tags:               []models.Tag{Tags[0]},
 		Difficulty:         Difficulties[0],
@@ -67,6 +68,7 @@ func ToProblemDetail(db models.ProblemDB) models.ProblemDetail {
 		ID:             db.ID,
 		Title:          db.Title,
 		Description:    db.Description,
+		Constraints:    db.Constraints,
 		Slug:           db.Slug,
 		Tags:           db.Tags,
 		Difficulty:     db.Difficulty,

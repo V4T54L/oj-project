@@ -1,23 +1,27 @@
 package router
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	authmodule "online-judge/internal/auth_module"
 	"online-judge/internal/handlers"
+	"online-judge/internal/models"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 )
 
-func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth) http.Handler {
+func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
+	executeCodefunc func(ctx context.Context, language string, payload models.ExecuteCodePayload) error,
+) http.Handler {
 	r := chi.NewRouter()
 
 	// Middleware
 	r.Use(middleware.Logger)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedOrigins:   []string{"*"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
@@ -44,8 +48,8 @@ func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth) http.Handler {
 		r.Post("/problems", handlers.CreateProblem)
 		r.Put("/problems", handlers.UpdateProblem)
 
-		r.Post("/submit", handlers.SubmitCode)
-		r.Get("/submission/{submissionID}", handlers.GetSubmissionResultByID)
+		r.Post("/submit", handlers.SubmitCode(executeCodefunc))
+		r.Get("/submissions/{submissionID}", handlers.GetSubmissionResultByID)
 	})
 
 	return r

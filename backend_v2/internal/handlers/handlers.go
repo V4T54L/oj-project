@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -138,39 +139,37 @@ func UpdateProblem(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func SubmitCode(w http.ResponseWriter, r *http.Request) {
-	var payload models.SubmitCodePayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	submission := models.SubmissionDB{
-		ID:        len(mockdata.Submissions) + 1,
-		Status:    "pending",
-		UserID:    1, // assuming a dummy user
-		ProblemID: payload.ProblemID,
-		RuntimeMS: 0,
-		MemoryKB:  0,
-	}
-
-	mockdata.Submissions = append(mockdata.Submissions, submission)
-
-	go func(subID int) {
-		time.Sleep(10 * time.Second) // simulate execution delay
-
-		for i, sub := range mockdata.Submissions {
-			if sub.ID == subID {
-				mockdata.Submissions[i].Status = "Accepted"
-				mockdata.Submissions[i].RuntimeMS = 123
-				mockdata.Submissions[i].MemoryKB = 1024
-				break
-			}
+func SubmitCode(executeCode func(ctx context.Context, language string, payload models.ExecuteCodePayload) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var payload models.SubmitCodePayload
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
-	}(submission.ID)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.SubmitCodeResponse{SubmissionID: submission.ID})
+		submission := models.SubmissionDB{
+			ID:        len(mockdata.Submissions) + 1,
+			Status:    "pending",
+			UserID:    1, // assuming a dummy user
+			ProblemID: payload.ProblemID,
+			RuntimeMS: 0,
+			MemoryKB:  0,
+		}
+
+		mockdata.Submissions = append(mockdata.Submissions, submission)
+
+		// TODO: obtain language from ID
+		language := "python"
+		if err := executeCode(r.Context(), language, models.ExecuteCodePayload{
+			ID: submission.ID,
+		}); err != nil {
+			http.Error(w, "error submitting the code: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(models.SubmitCodeResponse{SubmissionID: submission.ID})
+	}
 }
 
 func GetSubmissionResultByID(w http.ResponseWriter, r *http.Request) {

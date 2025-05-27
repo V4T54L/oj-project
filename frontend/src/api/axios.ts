@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base URL can be dynamically loaded from an environment variable
 const axiosInstance = axios.create({
-    baseURL: 'https://glowing-giggle-74gwwvrxpxg2rj56-8080.app.github.dev',
+    baseURL: 'https://glowing-giggle-74gwwvrxpxg2rj56-8080.app.github.dev/api',
     headers: {
         'Content-Type': 'application/json',
     },

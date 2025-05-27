@@ -2,9 +2,9 @@ import axios from './axios';
 import type { SubmissionPayload, SubmissionResult, TestCaseResult } from '../types';
 
 // Submit code for a problem
-export const submitCode = async (problemId: number, payload: SubmissionPayload): Promise<{ submission_id: number }> => {
+export const submitCode = async (payload: SubmissionPayload): Promise<{ submission_id: number }> => {
     try {
-        const response = await axios.post(`/problems/${problemId}/submit`, payload);
+        const response = await axios.post(`/submit`, payload);
         return response.data;
     } catch (error: any) {
         throw new Error(error.response?.data?.message || 'An error occurred while submitting the code');

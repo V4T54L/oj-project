@@ -13,6 +13,7 @@ type Config struct {
 	DB_URI               string
 	JWT_SECRET           string
 	TOKEN_EXPIRY_MINUTES int
+	REDIS_ADDR           string
 }
 
 // LoadEnv attempts to load .env file from the given path.
@@ -54,6 +55,11 @@ func NewConfig() (*Config, error) {
 	tokenExpiryMinutes, err := strconv.Atoi(tokenExpiryMinutesStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid TOKEN_EXPIRY_MINUTES value: %w", err)
+	}
+
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
 	}
 
 	return &Config{
