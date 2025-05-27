@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import MonacoEditor from "@monaco-editor/react";
-import { runCode, getRunResult } from "../api/submissions";
+import { runCode, getRunResult, submitCode, getSubmissionResult } from "../api/submissions";
 import { getProblemDetail } from "../api/problems";
 import { programmingLanguages } from "../mock";
-import type { TestCase, TestCaseResult, ProgrammingLanguage, SubmissionResult, ProblemDetail } from "../types";
+import type { TestCase, TestCaseResult, ProgrammingLanguage, SubmissionResult, ProblemDetail, ProblemExample } from "../types";
 import { getDiffText } from "../utils";
 
 export default function ViewProblemPage() {
@@ -42,13 +42,41 @@ export default function ViewProblemPage() {
         if (!problemId) return;
 
         try {
+            // TODO: Remove duplicate problemID
             const { run_id } = await runCode(problemId, {
                 code,
+                problem_id: problemId,
                 language_id: selectedLang.id,
-                test_cases: customTestCases,
+                // test_cases: customTestCases,
             });
             currentRunId.current = run_id; // Store runId to track polling
             pollForResults(run_id);
+        } catch (error) {
+            console.error("Failed to run code:", error);
+            setIsRunning(false); // Stop loading if the code submission fails
+        }
+    }, [code, customTestCases, isRunning, params, selectedLang]);
+
+    // Handle submitting the code
+    const handleSubmitCode = useCallback(async () => {
+        if (isRunning || !code) return;
+
+        setIsRunning(true);
+        const problemIdStr = params["id"];
+        if (!problemIdStr) return;
+
+        const problemId = parseInt(problemIdStr);
+        if (!problemId) return;
+
+        try {
+            // TODO: Remove duplicate problemID
+            const { submission_id } = await submitCode({
+                code,
+                problem_id: problemId,
+                language_id: selectedLang.id,
+            });
+            currentRunId.current = submission_id; // Store runId to track polling
+            pollForResults(submission_id);
         } catch (error) {
             console.error("Failed to run code:", error);
             setIsRunning(false); // Stop loading if the code submission fails
@@ -64,10 +92,10 @@ export default function ViewProblemPage() {
             }
 
             try {
-                const fetchedResults = await getRunResult(runId);
+                const fetchedResults = await getSubmissionResult(runId);
                 if (fetchedResults) {
-                    setResults(fetchedResults);
-                    // setSummary();
+                    // setResults(fetchedResults);
+                    setSummary(fetchedResults);
                     currentRunId.current = 0; // Stop polling once results are obtained
                     clearInterval(intervalId); // Clear the polling interval
                     setIsRunning(false); // Stop the running state
@@ -102,10 +130,10 @@ export default function ViewProblemPage() {
     useEffect(() => {
         if (!problem) return;
 
-        const convertedTestCases = problem.examples.map(({ id, input, output }) => ({
+        const convertedTestCases = problem.examples.map(({ id, input, expected_output }) => ({
             id,
             input,
-            expected_output: output,
+            expected_output,
         }));
         setCustomTestCases(convertedTestCases);
     }, [problem]);
@@ -132,6 +160,7 @@ export default function ViewProblemPage() {
                 }}
                 isRunning={isRunning}
                 onRun={handleRunCode}
+                onSubmit={handleSubmitCode}
             />
             {/* Test Case Tabs */}
             <TestCaseTabs
@@ -154,7 +183,7 @@ function ProblemHeader({ title }: { title: string }) {
     );
 }
 
-function ProblemDetails({ description, constraints, examples }: { description: string, constraints: string, examples: any[] }) {
+function ProblemDetails({ description, constraints, examples }: { description: string, constraints: string, examples: ProblemExample[] }) {
     return (
         <div className="space-y-6 text-gray-200">
             <p className="text-lg">{description}</p>
@@ -167,8 +196,11 @@ function ProblemDetails({ description, constraints, examples }: { description: s
                         <strong>Input:</strong>
                         <pre className="border border-gray-500 rounded-md my-2 p-2">{example.input}</pre>
                         <strong>Output:</strong>
-                        <pre className="border border-gray-500 rounded-md my-2 p-2">{example.output}</pre>
-                        <p><strong>Explanation:</strong> {example.explanation}</p>
+                        <pre className="border border-gray-500 rounded-md my-2 p-2">{example.expected_output}</pre>
+                        {
+                            example.explanation &&
+                            <p><strong>Explanation:</strong> {example.explanation}</p>
+                        }
                     </div>
                 ))}
             </Section>
@@ -183,6 +215,7 @@ function CodeEditor({
     onChangeLang,
     isRunning,
     onRun,
+    onSubmit,
 }: {
     code: string;
     onChangeCode: (val: string) => void;
@@ -190,6 +223,7 @@ function CodeEditor({
     onChangeLang: (id: number) => void;
     isRunning: boolean;
     onRun: () => void;
+    onSubmit: () => void;
 }) {
     return (
         <div className="space-y-4">
@@ -212,7 +246,7 @@ function CodeEditor({
                                 Run
                             </button>
                             <button
-                                onClick={() => { }}
+                                onClick={onSubmit}
                                 disabled={isRunning}
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded disabled:opacity-50 transition"
                             >
@@ -358,7 +392,7 @@ function TestCasesPanel({ results }: { results: TestCaseResult[] }) {
             <div className="flex flex-wrap gap-2">
                 {results.map((res, idx) => {
                     const isActive = idx === activeIndex;
-                    const verdict = res.verdict;
+                    const verdict = res.status;
 
                     const dotColor =
                         verdict === "Accepted" ? "bg-green-400" : "bg-red-400";
@@ -385,10 +419,10 @@ function TestCasesPanel({ results }: { results: TestCaseResult[] }) {
                         <p className="font-semibold mb-1 text-indigo-200">Input:</p>
                         <pre className="bg-gray-800 p-2 rounded whitespace-pre-wrap break-words">{active.input}</pre>
                     </div>
-                    {active.std_out && (
+                    {active.output && (
                         <div className="md:col-span-2">
                             <p className="font-semibold mb-1 text-indigo-200 mt-4">Std Out:</p>
-                            <pre className="bg-gray-800 p-2 rounded whitespace-pre-wrap break-words">{active.std_out}</pre>
+                            <pre className="bg-gray-800 p-2 rounded whitespace-pre-wrap break-words">{active.output}</pre>
                         </div>
                     )}
                     <div>
@@ -411,10 +445,10 @@ function TestCasesPanel({ results }: { results: TestCaseResult[] }) {
                     <p>
                         <strong>Verdict:</strong>{" "}
                         <span
-                            className={`font - semibold ${active.verdict === "Accepted" ? "text-green-400" : "text-red-400"
+                            className={`font - semibold ${active.status === "Accepted" ? "text-green-400" : "text-red-400"
                                 }`}
                         >
-                            {active.verdict}
+                            {active.status}
                         </span>
                     </p>
                     <p><strong>Runtime:</strong> {active.runtime_ms} ms</p>
@@ -431,13 +465,13 @@ function SubmissionSummary({ summary }: { summary: SubmissionResult }) {
             <h3 className="text-xl font-semibold text-indigo-300">Submission Summary</h3>
             <p>
                 <strong>Verdict:</strong>{" "}
-                <span className={summary.verdict === "Accepted" ? "text-green-400" : "text-red-400"}>
-                    {summary.verdict}
+                <span className={summary.status === "Accepted" ? "text-green-400" : "text-red-400"}>
+                    {summary.status}
                 </span>
             </p>
             <p><strong>Runtime:</strong> {summary.runtime_ms} ms</p>
             <p><strong>Memory:</strong> {summary.memory_kb} KB</p>
-            <p><strong>Message:</strong> {summary.message}</p>
+            {/* <p><strong>Message:</strong> {summary.message}</p> */}
         </div>
     );
 }
