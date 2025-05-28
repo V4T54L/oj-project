@@ -76,28 +76,7 @@ func startWorker(ctx context.Context, rdb *redis.Client, wg *sync.WaitGroup) {
 
 				// log.Printf("🔧 Processing task ID %d: %s", task.ID, task.Name)
 
-				// Simulate work
-				time.Sleep(2 * time.Second)
-
-				testResults := make([]TestCaseResult, 0, len(task.TestCases))
-				for _, v := range task.TestCases {
-					testResults = append(testResults, TestCaseResult{
-						ID:             v.ID,
-						Input:          v.Input,
-						Output:         v.ExpectedOutput,
-						ExpectedOutput: v.ExpectedOutput,
-						RuntimeMS:      30,
-						MemoryKB:       4,
-						Status:         "Accepted",
-					})
-				}
-
-				result := ExecuteCodeResponse{
-					ID:              task.ID,
-					Status:          "Accepted",
-					TestCaseResults: testResults,
-					ExecutionType:   task.ExecutionType,
-				}
+				result := ExecutePython(task)
 
 				data, _ := json.Marshal(result)
 				if err := rdb.RPush(ctx, "results_queue", data).Err(); err != nil {
