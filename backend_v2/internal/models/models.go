@@ -85,8 +85,8 @@ type TestCaseResult struct {
 }
 
 type ExecuteCodePayload struct {
-	ID             int               `json:"id"`
-	LanguageID     int               `json:"language_id"`
+	ID int `json:"id"`
+	// LanguageID     int               `json:"language_id"`
 	Code           string            `json:"code"`
 	TestCases      []ProblemTestCase `json:"test_cases"`
 	RuntimeLimitMS int               `json:"runtime_limit_ms"`
