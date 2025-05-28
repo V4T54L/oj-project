@@ -1,12 +1,11 @@
 package router
 
 import (
-	"context"
 	"database/sql"
 	"net/http"
 	authmodule "online-judge/internal/auth_module"
 	"online-judge/internal/handlers"
-	"online-judge/internal/models"
+	custom_middleware "online-judge/internal/middleware"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -14,7 +13,7 @@ import (
 )
 
 func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
-	executeCodefunc func(ctx context.Context, language string, payload models.ExecuteCodePayload) error,
+	handler handlers.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -35,21 +34,21 @@ func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
 	})
 
 	// Public routes
-	r.Post("/signup", handlers.Signup)
-	r.Post("/login", handlers.Login)
+	r.Post("/signup", handler.Signup)
+	r.Post("/login", handler.Login)
 
 	// Protected routes
 	r.Route("/api", func(r chi.Router) {
-		// r.Use(custom_middleware.JWTAuthMiddleware(auth))
-		// r.Get("/profile", handlers.ProfileHandler(db))
+		r.Use(custom_middleware.JWTAuthMiddleware(auth))
+		// r.Get("/profile", handler.ProfileHandler(db))
 
-		r.Get("/problems", handlers.GetProblemList)
-		r.Get("/problems/{problemID}", handlers.ViewProblem)
-		r.Post("/problems", handlers.CreateProblem)
-		r.Put("/problems", handlers.UpdateProblem)
+		r.Get("/problems", handler.GetProblemList)
+		r.Get("/problems/{problemID}", handler.ViewProblem)
+		r.Post("/problems", handler.CreateProblem)
+		r.Put("/problems", handler.UpdateProblem)
 
-		r.Post("/submit", handlers.SubmitCode(executeCodefunc))
-		r.Get("/submissions/{submissionID}", handlers.GetSubmissionResultByID)
+		r.Post("/submit", handler.SubmitCode)
+		r.Get("/submissions/{submissionID}", handler.GetSubmissionResultByID)
 	})
 
 	return r

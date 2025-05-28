@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	log.Println("👷 Worker service starting...")
+	// log.Println("👷 Worker service starting...")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
@@ -34,24 +34,24 @@ func main() {
 
 	// Wait for signal
 	<-sigs
-	// log.Println("🔻 Shutdown signal received.")
+	log.Println("🔻 Shutdown signal received.")
 	cancel()
 
 	// Wait for worker to finish
 	wg.Wait()
-	// log.Println("✅ Worker exited cleanly.")
+	log.Println("✅ Worker exited cleanly.")
 }
 
 func startWorker(ctx context.Context, rdb *redis.Client, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// log.Println("🛠️ Worker started...")
+		log.Println("🛠️ Worker started...")
 
 		for {
 			select {
 			case <-ctx.Done():
-				// log.Println("🛑 Worker context canceled. Exiting...")
+				log.Println("🛑 Worker context canceled. Exiting...")
 				return
 			default:
 				res, err := rdb.BLPop(ctx, 5*time.Second, "python").Result()
@@ -96,7 +96,7 @@ func startWorker(ctx context.Context, rdb *redis.Client, wg *sync.WaitGroup) {
 					ID:              task.ID,
 					Status:          "Accepted",
 					TestCaseResults: testResults,
-					ExecutionType:   "Submission",
+					ExecutionType:   task.ExecutionType,
 				}
 
 				data, _ := json.Marshal(result)

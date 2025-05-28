@@ -1,8 +1,21 @@
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import Footer from "../components/Footer";
 import { NavLink } from "react-router-dom";
+import { login } from "../api/auth";
 
 export default function LandingPage() {
+    useEffect(() => {
+        ; (
+            async () => {
+                try {
+                    const res = await login()
+                    console.log("Login response : ", res)
+                } catch (err) {
+                    console.log("Error Logging in: ", err)
+                }
+            }
+        )()
+    }, [])
     return (
         <div className="bg-gray-900 text-white min-h-screen flex flex-col">
             {/* Hero Section */}
