@@ -44,7 +44,7 @@ var ProblemsDB = []models.ProblemDB{
 		Examples:           ExampleCases,
 		SolutionLanguageID: 1,
 		SolutionCode:       `func twoSum(nums []int, target int) []int { /*...*/ }`,
-		Explaination:       "Use a hash map to store indices.",
+		Explanation:        "Use a hash map to store indices.",
 		Status:             "Active",
 		RuntimeLimitMS:     1000,
 		MemoryLimitKB:      256000,

@@ -43,15 +43,18 @@ func handleAuth(user models.UserDB, w http.ResponseWriter) {
 type Handler struct {
 	submissionRepo *repo.SubmissionRepo
 	problemRepo    *repo.ProblemRepo
+	contestRepo    *repo.InMemoryContestRepo
 	redisService   *services.RedisService
 }
 
 func NewHandler(submissionRepo *repo.SubmissionRepo,
 	problemRepo *repo.ProblemRepo,
+	contestRepo *repo.InMemoryContestRepo,
 	redisService *services.RedisService) (*Handler, error) {
 	return &Handler{
 		submissionRepo: submissionRepo,
 		problemRepo:    problemRepo,
+		contestRepo:    contestRepo,
 		redisService:   redisService,
 	}, nil
 }
@@ -73,7 +76,7 @@ func (h *Handler) validateProblem(ctx context.Context, problemID int) error {
 		ID:             problemID,
 		Code:           problem.SolutionCode,
 		TestCases:      testCases,
-		RuntimeLimitMS: problem.MemoryLimitKB,
+		RuntimeLimitMS: problem.RuntimeLimitMS,
 		MemoryLimitKB:  problem.MemoryLimitKB,
 		ExecutionType:  "validation",
 	}); err != nil {
@@ -220,7 +223,7 @@ func (h *Handler) SubmitCode(w http.ResponseWriter, r *http.Request) {
 		ID:             submissionId,
 		Code:           payload.Code,
 		TestCases:      testCases,
-		RuntimeLimitMS: problem.MemoryLimitKB,
+		RuntimeLimitMS: problem.RuntimeLimitMS,
 		MemoryLimitKB:  problem.MemoryLimitKB,
 		ExecutionType:  "submission",
 	}); err != nil {
@@ -248,4 +251,116 @@ func (h *Handler) GetSubmissionResultByID(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) CreateContest(w http.ResponseWriter, r *http.Request) {
+	var payload models.ContestDetail
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	id, err := h.contestRepo.CreateContest(r.Context(), &payload)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"id": id})
+}
+
+func (h *Handler) AddProblemToContest(w http.ResponseWriter, r *http.Request) {
+	contestIDStr := chi.URLParam(r, "contestID")
+	problemIDStr := chi.URLParam(r, "problemID")
+
+	contestID, err := strconv.Atoi(contestIDStr)
+	if err != nil {
+		http.Error(w, "Invalid contest ID", http.StatusBadRequest)
+		return
+	}
+	problemID, err := strconv.Atoi(problemIDStr)
+	if err != nil {
+		http.Error(w, "Invalid problem ID", http.StatusBadRequest)
+		return
+	}
+
+	var payload struct {
+		MaxScore int `json:"max_score"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.contestRepo.AddProblemToContest(r.Context(), contestID, problemID, payload.MaxScore); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("added"))
+}
+
+func (h *Handler) GetContest(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "contestID")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid contest ID", http.StatusBadRequest)
+		return
+	}
+
+	contest, err := h.contestRepo.GetContestByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(contest)
+}
+
+func (h *Handler) ListContests(w http.ResponseWriter, r *http.Request) {
+	contests, err := h.contestRepo.ListContests(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(contests)
+}
+
+func (h *Handler) SubmitContestSolution(w http.ResponseWriter, r *http.Request) {
+	var payload models.ContestSubmission
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := h.contestRepo.AddContestSubmission(r.Context(), payload); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("submitted"))
+}
+
+func (h *Handler) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
+	contestIDStr := chi.URLParam(r, "contestID")
+	contestID, err := strconv.Atoi(contestIDStr)
+	if err != nil {
+		http.Error(w, "Invalid contest ID", http.StatusBadRequest)
+		return
+	}
+
+	leaderboard, err := h.contestRepo.GetLeaderboard(r.Context(), contestID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(leaderboard)
 }

@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type basic struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
@@ -58,7 +60,7 @@ type ProblemDB struct {
 	Examples           []ProblemExamples `json:"examples"`
 	SolutionLanguageID int               `json:"solution_language_id"`
 	SolutionCode       string            `json:"solution_code"`
-	Explaination       string            `json:"explaination"`
+	Explanation        string            `json:"explanation"`
 	Status             string            `json:"status"` // Active, In Review, Rejected, Inactive
 	RuntimeLimitMS     int               `json:"runtime_limit_ms"`
 	MemoryLimitKB      int               `json:"memory_limit_kb"`
@@ -137,3 +139,89 @@ type LoginPayload struct {
 }
 
 type AuthResponse UserInfo
+
+// type ContestDB struct {
+// 	ID        int
+// 	Title     string
+// 	StartTime time.Time
+// 	EndTime   time.Time
+// 	IsActive  bool
+// }
+
+// type ContestProblemInfo struct {
+// 	ProblemID int
+// 	MaxScore  int
+// }
+
+// type ContestDetail struct {
+// 	ID        int                  `json:"id"`
+// 	Title     string               `json:"title"`
+// 	StartTime time.Time            `json:"start_time"`
+// 	EndTime   time.Time            `json:"end_time"`
+// 	Problems  []ContestProblemInfo `json:"problems"`
+// }
+
+// type ContestInfo struct {
+// 	ID        int
+// 	Title     string
+// 	StartTime time.Time
+// 	EndTime   time.Time
+// 	Problems  []ContestProblemInfo
+// }
+
+type ContestSubmission struct {
+	ID           int       `json:"id"`
+	SubmissionID int       `json:"submission_id"`
+	UserID       int       `json:"user_id"`
+	ContestID    int       `json:"contest_id"`
+	ProblemID    int       `json:"problem_id"`
+	Score        int       `json:"score"`
+	SubmittedAt  time.Time `json:"submitted_at"`
+}
+
+// type UserScore struct {
+// 	UserID     int    `json:"user_id"`
+// 	Username   string `json:"username"`
+// 	TotalScore int    `json:"total_score"`
+// }
+
+type ContestDetail struct {
+	ID           int
+	Title        string
+	Description  string
+	StartTime    time.Time
+	EndTime      time.Time
+	Status       string //'upcoming' | 'active' | 'completed'
+	CreatedBy    UserInfo
+	Participants []UserInfo
+	Problems     []ContestProblem
+	BannerURI    *string
+	Difficulty   string //'easy' | 'medium' | 'hard'
+	Tags         []Tag
+	Prizes       []Prize
+}
+
+type ContestProblem struct {
+	ID int
+	ProblemInfo
+	Points int
+}
+
+type Prize struct {
+	Rank        int
+	Description string
+	Value       *string
+}
+
+type ContestRank struct {
+	UserInfo
+	Rank            int
+	Score           int
+	ProblemStatuses []struct {
+		ProblemID    int
+		Status       string //'solved' | 'attempted' | 'not_attempted'
+		AttemptCount int
+		timeTaken    *int // in seconds
+		Score        int
+	}
+}

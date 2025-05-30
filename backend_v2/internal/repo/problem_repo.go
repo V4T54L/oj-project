@@ -26,7 +26,7 @@ func NewProblemRepo() *ProblemRepo {
 			SolutionCode: `a = int(input())
 b = int(input())
 print(a + b)`,
-			Explaination:   "Read two integers from stdin and print their sum.",
+			Explanation:    "Read two integers from stdin and print their sum.",
 			Status:         "Active",
 			RuntimeLimitMS: 1000,
 			MemoryLimitKB:  65536,
