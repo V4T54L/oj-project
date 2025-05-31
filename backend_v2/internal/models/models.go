@@ -122,6 +122,7 @@ type UserDB struct {
 }
 
 type UserInfo struct {
+	ID       int
 	Username string `json:"username"`
 	Email    string `json:"email"`
 }
@@ -241,4 +242,44 @@ type RunPayload struct {
 	LanguageID int               `json:"language_id"`
 	Code       string            `json:"code"`
 	TestCases  []ProblemTestCase `json:"test_cases"`
+}
+
+type DiscussionDB struct {
+	ID                  int
+	ProblemID           int
+	CreatedBy           UserInfo
+	Title               string
+	Content             string
+	Tags                []Tag
+	Likes               int
+	Dislikes            int
+	CurrentUserReaction int // -1 = dislike; 1 = like
+	Comments            []CommentDB
+}
+
+type CommentDB struct {
+	ID                  int
+	DiscussionID        int
+	CreatedBy           UserInfo
+	Content             string
+	Likes               int
+	Dislikes            int
+	CurrentUserReaction int // -1 = dislike; 1 = like
+}
+
+type NewDiscussionPayload struct {
+	ProblemID int
+	Title     string
+	Content   string
+	TagIDs    []int
+}
+
+type NewCommentPayload struct {
+	DiscussionID int
+	Content      string
+}
+
+type ReactionPayload struct {
+	ID       int
+	Reaction int
 }

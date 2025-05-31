@@ -12,9 +12,7 @@ import (
 	"github.com/go-chi/cors"
 )
 
-func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
-	handler handlers.Handler,
-) http.Handler {
+func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth, handler handlers.Handler) http.Handler {
 	r := chi.NewRouter()
 
 	// Middleware
@@ -27,7 +25,7 @@ func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
 		MaxAge:           300,
 	}))
 
-	// health check
+	// Health check
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("healthy"))
@@ -40,7 +38,6 @@ func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
 	// Protected routes
 	r.Route("/api", func(r chi.Router) {
 		r.Use(custom_middleware.JWTAuthMiddleware(auth))
-		// r.Get("/profile", handler.ProfileHandler(db))
 
 		r.Get("/problems", handler.GetProblemList)
 		r.Get("/problems/{problemID}", handler.ViewProblem)
@@ -62,6 +59,14 @@ func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
 			r.Get("/{contestID}/leaderboard", handler.GetLeaderboard)
 		})
 
+		r.Route("/discussions", func(r chi.Router) {
+			r.Post("/", handler.CreateDiscussion)
+			r.Put("/", handler.UpdateDiscussion)
+			r.Get("/{problemID}", handler.GetDiscussions)
+			r.Post("/comment", handler.AddComment)
+			r.Post("/reaction", handler.AddReactionToDiscussion)
+			r.Post("/comment/reaction", handler.AddReactionToComment)
+		})
 	})
 
 	return r

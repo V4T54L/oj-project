@@ -44,17 +44,20 @@ type Handler struct {
 	submissionRepo *repo.SubmissionRepo
 	problemRepo    *repo.ProblemRepo
 	contestRepo    *repo.InMemoryContestRepo
+	discussionRepo *repo.DiscussionRepo
 	redisService   *services.RedisService
 }
 
 func NewHandler(submissionRepo *repo.SubmissionRepo,
 	problemRepo *repo.ProblemRepo,
 	contestRepo *repo.InMemoryContestRepo,
+	discussionRepo *repo.DiscussionRepo,
 	redisService *services.RedisService) (*Handler, error) {
 	return &Handler{
 		submissionRepo: submissionRepo,
 		problemRepo:    problemRepo,
 		contestRepo:    contestRepo,
+		discussionRepo: discussionRepo,
 		redisService:   redisService,
 	}, nil
 }
@@ -423,4 +426,152 @@ func (h *Handler) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(leaderboard)
+}
+
+func (h *Handler) CreateDiscussion(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	var payload models.NewDiscussionPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	discussionID, err := h.discussionRepo.CreateDiscussion(r.Context(), userID, payload.ProblemID, payload.Title,
+		payload.Content, payload.TagIDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"id": discussionID})
+}
+
+func (h *Handler) UpdateDiscussion(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	var payload models.NewDiscussionPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.discussionRepo.UpdateDiscussion(r.Context(), userID, payload.ProblemID, payload.Title,
+		payload.Content, payload.TagIDs)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("ok"))
+}
+
+func (h *Handler) GetDiscussions(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	problemIDStr := chi.URLParam(r, "problemID")
+
+	problemID, err := strconv.Atoi(problemIDStr)
+	if err != nil {
+		http.Error(w, "Invalid problem ID", http.StatusBadRequest)
+		return
+	}
+
+	discussions, err := h.discussionRepo.GetDiscussion(r.Context(), problemID, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(discussions)
+}
+
+func (h *Handler) AddComment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	var payload models.NewCommentPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	commentID, err := h.discussionRepo.AddCommentToDiscussion(r.Context(), userID, payload.DiscussionID, payload.Content)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"id": commentID})
+}
+
+func (h *Handler) AddReactionToDiscussion(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	var payload models.ReactionPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.discussionRepo.ReactToDiscussion(r.Context(), userID, payload.Reaction, payload.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("ok"))
+}
+
+func (h *Handler) AddReactionToComment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	var payload models.ReactionPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.discussionRepo.ReactToComment(r.Context(), userID, payload.Reaction, payload.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("ok"))
 }
