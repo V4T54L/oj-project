@@ -235,6 +235,48 @@ func (h *Handler) SubmitCode(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(models.SubmitCodeResponse{SubmissionID: submissionId})
 }
 
+func (h *Handler) SubmitRun(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(middleware.UserIDKey).(int)
+	if !ok {
+		log.Println("Raw : ", r.Context().Value(middleware.UserIDKey))
+		http.Error(w, "invalid token (userID)", http.StatusBadRequest)
+		return
+	}
+
+	var payload models.RunPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	problem, err := h.problemRepo.GetProblemMetadata(r.Context(), payload.ProblemID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	runID, err := h.submissionRepo.NewSubmission(r.Context(), payload.ProblemID, userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// TODO: obtain language from ID
+	language := "python"
+	if err := h.redisService.ExecuteCode(r.Context(), language, models.ExecuteCodePayload{
+		ID:             runID,
+		Code:           payload.Code,
+		TestCases:      payload.TestCases,
+		RuntimeLimitMS: problem.RuntimeLimitMS,
+		MemoryLimitKB:  problem.MemoryLimitKB,
+		ExecutionType:  "submission",
+	}); err != nil {
+		http.Error(w, "error submitting the code: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(models.SubmitCodeResponse{SubmissionID: runID})
+}
+
 func (h *Handler) GetSubmissionResultByID(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "submissionID")
 	id, err := strconv.Atoi(idStr)
@@ -244,6 +286,24 @@ func (h *Handler) GetSubmissionResultByID(w http.ResponseWriter, r *http.Request
 	}
 
 	result, err := h.submissionRepo.GetSubmission(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *Handler) GetRunResultByID(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "runID")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid Run ID", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.submissionRepo.GetRun(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

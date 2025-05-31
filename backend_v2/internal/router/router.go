@@ -50,6 +50,9 @@ func NewChiRouter(db *sql.DB, auth *authmodule.JWTAuth,
 		r.Post("/submit", handler.SubmitCode)
 		r.Get("/submissions/{submissionID}", handler.GetSubmissionResultByID)
 
+		r.Post("/runs", handler.SubmitRun)
+		r.Get("/runs/{runID}", handler.GetRunResultByID)
+
 		r.Route("/contests", func(r chi.Router) {
 			r.Get("/", handler.ListContests)
 			r.Get("/{contestID}", handler.GetContest)

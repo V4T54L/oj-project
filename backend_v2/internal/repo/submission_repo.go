@@ -9,11 +9,12 @@ import (
 )
 
 type SubmissionRepo struct {
-	db []models.SubmissionDB
+	db   []models.SubmissionDB
+	runs []models.RunDB
 }
 
 func NewSubmissionRepo() *SubmissionRepo {
-	return &SubmissionRepo{db: make([]models.SubmissionDB, 0)}
+	return &SubmissionRepo{db: make([]models.SubmissionDB, 0), runs: make([]models.RunDB, 0)}
 }
 
 // Creates a new submission and appends it to the DB
@@ -62,4 +63,47 @@ func (r *SubmissionRepo) UpdateSubmission(ctx context.Context, submissionId, run
 		}
 	}
 	return errors.New("submission not found")
+}
+
+func (r *SubmissionRepo) NewRun(ctx context.Context, problemId, userId int) (int, error) {
+	run := models.RunDB{
+		ID:        len(r.runs) + 1,
+		UserID:    userId,
+		ProblemID: problemId,
+		Results:   nil,
+		Status:    "pending",
+	}
+	r.runs = append(r.runs, run)
+
+	return run.ID, nil
+}
+
+func (r *SubmissionRepo) GetRun(ctx context.Context, runId int) (*models.RunDB, error) {
+	for i := range r.db {
+		if r.db[i].ID == runId {
+			if r.db[i].Status == "pending" {
+				log.Println("\nRun found. Status:", r.db[i].Status, r.db[i].MemoryKB, r.db[i].RuntimeMS)
+				return nil, errors.New("run is still pending")
+			}
+			return &r.runs[i], nil // FIX: return pointer to actual element
+		}
+	}
+	return nil, errors.New("run not found")
+}
+
+func (r *SubmissionRepo) UpdateRun(ctx context.Context, runId, runtime, memory int, status string) error {
+	log.Println("\n\nUpdate Run request received:", runId, runtime, memory, status)
+	log.Println("Existing Runs: ", r.db)
+
+	for i := range r.db {
+		log.Println("Checking: ", r.db[i].ID, runId)
+		if r.db[i].ID == runId {
+			log.Println("\nRun found. Updating...")
+			r.db[i].RuntimeMS = runtime
+			r.db[i].MemoryKB = memory
+			r.db[i].Status = status
+			return nil
+		}
+	}
+	return errors.New("run not found")
 }

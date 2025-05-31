@@ -186,42 +186,59 @@ type ContestSubmission struct {
 // }
 
 type ContestDetail struct {
-	ID           int
-	Title        string
-	Description  string
-	StartTime    time.Time
-	EndTime      time.Time
-	Status       string //'upcoming' | 'active' | 'completed'
-	CreatedBy    UserInfo
-	Participants []UserInfo
-	Problems     []ContestProblem
-	BannerURI    *string
-	Difficulty   string //'easy' | 'medium' | 'hard'
-	Tags         []Tag
-	Prizes       []Prize
+	ID           int              `json:"id"`
+	Title        string           `json:"title"`
+	Description  string           `json:"description"`
+	StartTime    time.Time        `json:"start_time"`
+	EndTime      time.Time        `json:"end_time"`
+	Status       string           `json:"status"` //'upcoming' | 'active' | 'completed'
+	CreatedBy    UserInfo         `json:"created_by"`
+	Participants []UserInfo       `json:"participants"`
+	Problems     []ContestProblem `json:"problems"`
+	BannerURI    *string          `json:"banner_uri"`
+	Difficulty   string           `json:"difficulty"` //'easy' | 'medium' | 'hard'
+	Tags         []Tag            `json:"tags"`
+	Prizes       []Prize          `json:"prizes"`
 }
 
 type ContestProblem struct {
-	ID int
-	ProblemInfo
-	Points int
+	ID          int `json:"id"`
+	ProblemInfo `json:"problem_info"`
+	Points      int `json:"points"`
 }
 
 type Prize struct {
-	Rank        int
-	Description string
-	Value       *string
+	Rank        int     `json:"rank"`
+	Description string  `json:"description"`
+	Value       *string `json:"value"`
 }
 
 type ContestRank struct {
-	UserInfo
-	Rank            int
-	Score           int
+	UserInfo        `json:"user_info"`
+	Rank            int `json:"rank"`
+	Score           int `json:"score"`
 	ProblemStatuses []struct {
-		ProblemID    int
-		Status       string //'solved' | 'attempted' | 'not_attempted'
-		AttemptCount int
-		timeTaken    *int // in seconds
-		Score        int
-	}
+		ProblemID    int    `json:"problem_id"`
+		Status       string `json:"status"` //'solved' | 'attempted' | 'not_attempted'
+		AttemptCount int    `json:"attempt_count"`
+		TimeTaken    *int   `json:"time_taken"` // in seconds
+		Score        int    `json:"score"`
+	} `json:"problem_statuses"`
+}
+
+type RunDB struct {
+	ID        int              `json:"id"`
+	UserID    int              `json:"user_id"`
+	ProblemID int              `json:"problem_id"`
+	Results   []TestCaseResult `json:"results"`
+	Status    string           `json:"status"`
+}
+
+type RunPayload struct {
+	ID         int               `json:"id"`
+	UserID     int               `json:"user_id"`
+	ProblemID  int               `json:"problem_id"`
+	LanguageID int               `json:"language_id"`
+	Code       string            `json:"code"`
+	TestCases  []ProblemTestCase `json:"test_cases"`
 }
