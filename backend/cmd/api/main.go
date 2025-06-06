@@ -1,61 +1,56 @@
 package main
 
 import (
-	"algo-arena-be/internals/config"
-	"algo-arena-be/internals/dbconn"
-	"algo-arena-be/internals/migrate"
-	"algo-arena-be/internals/server"
-	"algo-arena-be/internals/services"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
-	"os"
+	"sync"
 )
 
 func main() {
-	if os.Getenv("ENVIRONMENT") != "PRODUCTION" {
-		err := config.LoadConfigurationFile(".env")
-		if err != nil {
-			log.Fatal("Error loading .env : ", err)
-		}
-	}
-	cfg, err := config.GetConfig()
-	if err != nil {
-		log.Fatal("Error loading config : ", err)
-	}
+	redisService := NewRedisService(redisUrl)
 
-	db, err := dbconn.GetPostgresDb(cfg.DB_URI)
+	postgres, err := NewPostgreSQLDB(dbUrl, maxIdleConns, maxOpenConns)
 	if err != nil {
-		log.Fatal("Error connecting to postgres db: ", err)
+		log.Fatalf("Error initializing PostgreSQL: %v", err)
 	}
 
 	defer func() {
-		if err = dbconn.ClosePostgresDbConn(db); err != nil {
-			log.Println("Error closing postgres db: ", err)
+		if err := postgres.Close(); err != nil {
+			log.Printf("Error closing the PostgreSQL connection: %v", err)
 		}
 	}()
 
-	log.Println("Postgres connected successfully! ")
+	db := postgres.conn
 
-	if err := migrate.MigratePostgres(context.Background(), db); err != nil {
-		log.Fatal("Error migrating database : ", err)
-	}
+	srv := NewService(db, redisService.ExecuteCode)
 
-	problemService, submissionService, err := services.GetServices(db)
-	if err != nil {
-		log.Fatal("Error initializing services : ", err)
-	}
-	log.Println("[+] Services Initialized")
+	h := NewHandler(srv)
+	// Set up the routes
+	r := h.Routes()
 
-	r := server.NewChiRouter()
-	server.RegisterRoutes(r, problemService, submissionService)
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	log.Println("[+] Routes registered")
+	var wg sync.WaitGroup
 
-	s := http.Server{
-		Addr:    cfg.SERVER_PORT,
+	redisService.StartResultWorker(ctx, func(er *ExecutionResponse) {
+		log.Printf("\n\n\n### Results received:\n ID: %d \n Type: %s \n\n\n", er.SubmissionID, er.ExecutionType)
+	}, &wg)
+
+	// Set up the server
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", serverPort),
 		Handler: r,
 	}
 
-	server.RunWithGracefulShutdown(&s)
+	// Start the server
+	log.Println("Server started on :8080")
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatal("Server failed to start: ", err)
+	}
+
+	wg.Wait()
+
 }

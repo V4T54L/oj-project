@@ -1,89 +1,154 @@
-type basic = {
-    id: number
-    name: string
+export type UserRole = 'admin' | 'user';
+export type ProblemStatus = 'active' | 'inactive';
+export type SubmissionStatus = 'pending' | 'accepted' | 'rejected';
+export type ContestStatus = 'upcoming' | 'ongoing' | 'finished';
+export type Language = 'python' | 'cpp' | 'java' | 'javascript';
+export type Difficulty = 'easy' | 'medium' | 'hard';
+export type Vote = 1 | -1;
+
+export interface User {
+    ID: number;
+    Username: string;
+    HashedPassword: string;
+    Email: string;
+    Role: UserRole;
+    Rating: number;
+    SolvedProblems: ProblemInfo[];
 }
 
-export type Tag = basic
-
-export type Difficulty = basic
-
-export type ProgrammingLanguage = basic
-
-export type ProblemInfo = {
-    id: number
-    is_solved: boolean
-    title: string
-    difficulty: Difficulty
-    tags: Tag[]
-    acceptance_rate: number
+export interface ProblemInfo {
+    ID: number;
+    Title: string;
+    Slug: string;
+    Tags: string[];
+    Difficulty: Difficulty;
 }
 
-export type ProblemExample = {
-    id: number
-    input: string
-    expected_output: string
-    explanation: string
+export interface TestCase {
+    ID: number;
+    Input: string;
+    ExpectedOutput: string;
 }
 
-export type ProblemDetail = {
-    id: number
-    title: string
-    description: string
-    slug: string
-    tags: Tag[]
-    difficulty: Difficulty
-    AcceptanceRate: number
-    is_solved?: boolean
-    examples: ProblemExample[]
-    constraints: string
+export interface Limits {
+    ProblemID: number;
+    Language: Language;
+    TimeLimitMS: number;
+    MemoryLimitKB: number;
 }
 
-export type SubmissionResult = {
-    id: number
-    status: string
-    runtime_ms: number
-    memory_kb: number
-    // message: string
+export interface ProblemDetail {
+    ID: number;
+    Title: string;
+    Description: string;
+    Constraints: string[];
+    Slug: string;
+    Tags: string[];
+    Difficulty: Difficulty;
+    AuthorID: number;
+    Status: ProblemStatus;
+    SolutionLanguage: Language;
+    SolutionCode: string;
+    TestCases: TestCase[];
+    Limits: Limits[];
+    FailureReason: string;
 }
 
-export type TestCaseResult = SubmissionResult & {
-    input: string
-    // std_out: string
-    output: string
-    expected_output: string
-    runtime_ms: number
-    memory_kb: number
-    status: string
+export interface TestResult {
+    ID: number;
+    Status: SubmissionStatus;
+    StdOut: string;
+    StdErr: string;
+    RuntimeMS: number;
+    MemoryKB: number;
 }
 
-export type TestCase = {
-    id: number
-    input: string
-    expected_output: string
+export interface Submission {
+    ID: number;
+    ProblemID: number;
+    UserID: number;
+    ContestID: number;
+    Language: Language;
+    Code: string;
+    Status: SubmissionStatus;
+    Message: string;
+    Results: TestResult[];
 }
 
-export type SubmissionPayload = {
-    problem_id: number
-    language_id: number
-    code: string
-    // test_cases: TestCase[]
+export interface ContestProblem extends ProblemInfo {
+    // ProblemInfo: ProblemInfo;
+    MaxPoints: number;
 }
 
-export type SignupPayload = {
-    avatar_url: string
-    name: string
-    username: string
-    email: string
-    password: string
-    confirm_password: string
+export interface ContestParticipant {
+    UserID: number;
+    Username: string;
+    Score: number;
+    ProblemsSolved: ContestProblem[];
+    RatingChange: number;
 }
 
-export type LoginPayload = {
-    username: string
-    password: string
+export interface Contest {
+    ID: number;
+    Name: string;
+    Status: ContestStatus;
+    StartTime: string; // ISO date-time string
+    EndTime: string;
+    Problems: ContestProblem[];
+    Leaderboard: ContestParticipant[];
 }
 
-export type UserInfo = {
-    username: string
-    email: string
+export interface DiscussionComment {
+    ID: number;
+    Content: string;
+    AuthorID: number;
+}
+
+export interface Discussion {
+    ID: number;
+    Title: string;
+    Content: string;
+    Tags: string[];
+    AuthorID: number;
+    Votes: number;
+    Comments: DiscussionComment[];
+}
+
+export interface SignupPayload {
+    Username: string;
+    Email: string;
+    Password: string;
+}
+
+export interface LoginPayload {
+    Username: string;
+    Password: string;
+}
+
+export interface RunCodePayload {
+    ProblemID: number;
+    Language: Language;
+    Code: string;
+    Cases: TestCase[];
+}
+
+export interface SubmissionPayload {
+    ProblemID: number;
+    Language: Language;
+    Code: string;
+}
+
+export interface AddVotePayload {
+    DiscussionID: number;
+    Vote: Vote;
+}
+
+export interface OkResponse {
+    message: string;
+}
+
+export interface IdResponse {
+    id: number;
+    run_id: number;
+    submission_id: number;
 }
