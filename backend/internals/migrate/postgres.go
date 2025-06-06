@@ -3,16 +3,20 @@ package migrate
 import (
 	"context"
 	"database/sql"
+	"log"
 	"time"
 )
 
 func MigratePostgres(ctx context.Context, db *sql.DB) error {
-	query := schemaQuery        // + seedingQuery + devQuery
+	query := schemaQuery + seedingQuery + devQuery
 	_ = seedingQuery + devQuery // skipping seeding the database for prod
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	_, err := db.ExecContext(ctx, query)
+	if err != nil {
+		log.Println("Error migrating db")
+	}
 
 	return err
 }

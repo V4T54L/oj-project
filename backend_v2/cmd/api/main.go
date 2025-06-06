@@ -40,6 +40,7 @@ func main() {
 	problemRepo := repo.NewProblemRepo()
 	submissionRepo := repo.NewSubmissionRepo()
 	contestRepo := repo.NewInMemoryContestRepo()
+	discussionRepo := repo.NewDiscussionRepo()
 
 	redisClient.StartResultWorker(ctx, func(ecr *models.ExecuteCodeResponse) {
 		status, runtime, memory := "Accepted", 0, 0
@@ -62,7 +63,7 @@ func main() {
 		}
 	}, &wg)
 
-	handler, err := handlers.NewHandler(submissionRepo, problemRepo, contestRepo, redisClient)
+	handler, err := handlers.NewHandler(submissionRepo, problemRepo, contestRepo, discussionRepo, redisClient)
 	if err != nil {
 		log.Fatalf("Failed to load handler: %v", err)
 	}
