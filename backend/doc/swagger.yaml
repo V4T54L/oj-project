@@ -14,14 +14,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignupPayload'
+              $ref: "#/components/schemas/SignupPayload"
       responses:
-        '200':
+        "200":
           description: Successful signup
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /login:
     post:
@@ -32,14 +32,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginPayload'
+              $ref: "#/components/schemas/LoginPayload"
       responses:
-        '200':
+        "200":
           description: Successful login
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /profile/{username}:
     get:
@@ -53,12 +53,12 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: User profile
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: "#/components/schemas/User"
 
   /problems:
     get:
@@ -66,14 +66,14 @@ paths:
         - Problems
       summary: Get all problems
       responses:
-        '200':
+        "200":
           description: List of all problems
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ProblemInfo'
+                  $ref: "#/components/schemas/ProblemInfo"
     post:
       tags:
         - Problems
@@ -84,14 +84,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              $ref: "#/components/schemas/ProblemDetail"
       responses:
-        '200':
+        "200":
           description: Problem created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/idResp'
+                $ref: "#/components/schemas/idResp"
 
   /problem/{slug}:
     get:
@@ -105,12 +105,12 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Problem details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProblemDetail'
+                $ref: "#/components/schemas/ProblemDetail"
 
   /problems/{id}:
     put:
@@ -129,14 +129,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ProblemDetail'
+              $ref: "#/components/schemas/ProblemDetail"
       responses:
-        '200':
+        "200":
           description: Problem updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /run:
     post:
@@ -149,14 +149,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RunCodePayload'
+              $ref: "#/components/schemas/RunCodePayload"
       responses:
-        '200':
+        "200":
           description: Code run result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/idResp'
+                $ref: "#/components/schemas/idResp"
 
   /submit:
     post:
@@ -169,14 +169,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SubmissionPayload'
+              $ref: "#/components/schemas/SubmissionPayload"
       responses:
-        '200':
+        "200":
           description: Successful code submission
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/idResp'
+                $ref: "#/components/schemas/idResp"
 
   /submissions/{problemID}:
     get:
@@ -192,14 +192,14 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: List of submissions for the problem
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Submission'
+                  $ref: "#/components/schemas/Submission"
 
   /submission/{runID}:
     get:
@@ -215,12 +215,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Submission result
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Submission'
+                $ref: "#/components/schemas/Submission"
 
   /contests:
     get:
@@ -228,14 +228,14 @@ paths:
         - Contests
       summary: Get all contests
       responses:
-        '200':
+        "200":
           description: List of contests
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Contest'
+                  $ref: "#/components/schemas/Contest"
     post:
       tags:
         - Contests
@@ -246,14 +246,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Contest'
+              $ref: "#/components/schemas/Contest"
       responses:
-        '200':
+        "200":
           description: Contest created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/idResp'
+                $ref: "#/components/schemas/idResp"
 
   /contest/{id}:
     get:
@@ -267,12 +267,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Contest details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Contest'
+                $ref: "#/components/schemas/Contest"
     put:
       tags:
         - Contests
@@ -289,14 +289,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Contest'
+              $ref: "#/components/schemas/Contest"
       responses:
-        '200':
+        "200":
           description: Contest updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /contest/{id}/leaderboard:
     get:
@@ -310,14 +310,14 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Contest leaderboard
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ContestParticipant'
+                  $ref: "#/components/schemas/ContestParticipant"
 
   /discussion/{id}:
     get:
@@ -331,12 +331,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Discussion details
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Discussion'
+                $ref: "#/components/schemas/Discussion"
 
   /discussion:
     post:
@@ -349,14 +349,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Discussion'
+              $ref: "#/components/schemas/Discussion"
       responses:
-        '200':
+        "200":
           description: Discussion created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/idResp'
+                $ref: "#/components/schemas/idResp"
     put:
       tags:
         - Discussions
@@ -367,14 +367,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Discussion'
+              $ref: "#/components/schemas/Discussion"
       responses:
-        '200':
+        "200":
           description: Discussion updated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /discussion/vote:
     post:
@@ -387,14 +387,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AddVotePayload'
+              $ref: "#/components/schemas/AddVotePayload"
       responses:
-        '200':
+        "200":
           description: Vote added
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /contest/{id}/start:
     post:
@@ -410,12 +410,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Contest started
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /contest/{id}/end:
     post:
@@ -431,12 +431,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Contest ended
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
   /contest/{id}/join:
     post:
@@ -452,12 +452,12 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        "200":
           description: Contest joined
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/okResp'
+                $ref: "#/components/schemas/okResp"
 
 components:
   securitySchemes:
@@ -524,13 +524,13 @@ components:
         Email:
           type: string
         Role:
-          $ref: '#/components/schemas/UserRole'
+          $ref: "#/components/schemas/UserRole"
         Rating:
           type: integer
         SolvedProblems:
           type: array
           items:
-            $ref: '#/components/schemas/ProblemInfo'
+            $ref: "#/components/schemas/ProblemInfo"
     ProblemInfo:
       type: object
       properties:
@@ -543,7 +543,7 @@ components:
           items:
             type: string
         Difficulty:
-          $ref: '#/components/schemas/Difficulty'
+          $ref: "#/components/schemas/Difficulty"
     ProblemDetail:
       type: object
       properties:
@@ -564,23 +564,23 @@ components:
           items:
             type: string
         Difficulty:
-          $ref: '#/components/schemas/Difficulty'
+          $ref: "#/components/schemas/Difficulty"
         AuthorID:
           type: integer
         Status:
-          $ref: '#/components/schemas/ProblemStatus'
+          $ref: "#/components/schemas/ProblemStatus"
         SolutionLanguage:
-          $ref: '#/components/schemas/Language'
+          $ref: "#/components/schemas/Language"
         SolutionCode:
           type: string
         TestCases:
           type: array
           items:
-            $ref: '#/components/schemas/TestCase'
+            $ref: "#/components/schemas/TestCase"
         Limits:
           type: array
           items:
-            $ref: '#/components/schemas/Limits'
+            $ref: "#/components/schemas/Limits"
         FailureReason:
           type: string
     Submission:
@@ -595,7 +595,7 @@ components:
         ContestID:
           type: integer
         Language:
-          $ref: '#/components/schemas/Language'
+          $ref: "#/components/schemas/Language"
         Code:
           type: string
         Status:
@@ -605,17 +605,19 @@ components:
         Results:
           type: array
           items:
-            $ref: '#/components/schemas/TestResult'
+            $ref: "#/components/schemas/TestResult"
     TestResult:
       type: object
       properties:
         ID:
           type: integer
         Status:
-          $ref: '#/components/schemas/SubmissionStatus'
-        StdOut:
+          $ref: "#/components/schemas/SubmissionStatus"
+        Input:
           type: string
-        StdErr:
+        Output:
+          type: string
+        ExpectedOutput:
           type: string
         RuntimeMS:
           type: integer
@@ -633,14 +635,14 @@ components:
         ProblemsSolved:
           type: array
           items:
-            $ref: '#/components/schemas/ContestProblem'
+            $ref: "#/components/schemas/ContestProblem"
         RatingChange:
           type: integer
     ContestProblem:
       type: object
       properties:
         ProblemInfo:
-          $ref: '#/components/schemas/ProblemInfo'
+          $ref: "#/components/schemas/ProblemInfo"
         MaxPoints:
           type: integer
     Contest:
@@ -651,7 +653,7 @@ components:
         Name:
           type: string
         Status:
-          $ref: '#/components/schemas/ContestStatus'
+          $ref: "#/components/schemas/ContestStatus"
         StartTime:
           type: string
           format: date-time
@@ -661,11 +663,11 @@ components:
         Problems:
           type: array
           items:
-            $ref: '#/components/schemas/ContestProblem'
+            $ref: "#/components/schemas/ContestProblem"
         Leaderboard:
           type: array
           items:
-            $ref: '#/components/schemas/ContestParticipant'
+            $ref: "#/components/schemas/ContestParticipant"
     Discussion:
       type: object
       properties:
@@ -688,7 +690,7 @@ components:
         Comments:
           type: array
           items:
-            $ref: '#/components/schemas/DiscussionComment'
+            $ref: "#/components/schemas/DiscussionComment"
     DiscussionComment:
       type: object
       properties:
@@ -704,7 +706,7 @@ components:
         DiscussionID:
           type: integer
         Vote:
-          $ref: '#/components/schemas/Vote'
+          $ref: "#/components/schemas/Vote"
     SignupPayload:
       type: object
       properties:
@@ -727,20 +729,20 @@ components:
         ProblemID:
           type: integer
         Language:
-          $ref: '#/components/schemas/Language'
+          $ref: "#/components/schemas/Language"
         Code:
           type: string
         Cases:
           type: array
           items:
-            $ref: '#/components/schemas/TestCase'
+            $ref: "#/components/schemas/TestCase"
     SubmissionPayload:
       type: object
       properties:
         ProblemID:
           type: integer
         Language:
-          $ref: '#/components/schemas/Language'
+          $ref: "#/components/schemas/Language"
         Code:
           type: string
     okResp:
@@ -753,7 +755,7 @@ components:
       properties:
         id:
           type: integer
-    
+
     TestCase:
       type: object
       properties:
@@ -763,16 +765,15 @@ components:
           type: string
         ExpectedOutput:
           type: string
-        
+
     Limits:
       type: object
       properties:
         ProblemID:
           type: integer
         Language:
-          $ref: '#/components/schemas/Language'  # Reference to the Language enum
+          $ref: "#/components/schemas/Language" # Reference to the Language enum
         TimeLimitMS:
           type: integer
         MemoryLimitKB:
           type: integer
-

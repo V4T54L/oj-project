@@ -17,10 +17,11 @@ const (
 type serviceImpl struct {
 	db               *sql.DB
 	sendForExecution func(ctx context.Context, payload ExecutionPayload) error
+	submissions      []Submission
 }
 
 func NewService(db *sql.DB, sendForExecution func(ctx context.Context, payload ExecutionPayload) error) *serviceImpl {
-	return &serviceImpl{db: db, sendForExecution: sendForExecution}
+	return &serviceImpl{db: db, sendForExecution: sendForExecution, submissions: make([]Submission, 0)}
 }
 
 func (s *serviceImpl) Register(ctx context.Context, username, email, password string) (int, string, error) {
@@ -284,7 +285,7 @@ func (s *serviceImpl) UpdateProblemByID(ctx context.Context, id int, problem *Pr
 
 func (s *serviceImpl) GetProblemBySlug(ctx context.Context, slug string) (*ProblemDetail, error) {
 	const problemQuery = `
-		SELECT id, title, description, constraints, difficulty, author_id, status, solution_language, solution_code, failure_reason
+		SELECT id, title, description, constraints, difficulty, author_id, status, failure_reason
 		FROM problems WHERE slug = $1;
 	`
 
@@ -295,7 +296,7 @@ func (s *serviceImpl) GetProblemBySlug(ctx context.Context, slug string) (*Probl
 	var constraints *string
 	err := s.db.QueryRowContext(ctx, problemQuery, slug).Scan(
 		&pd.ID, &pd.Title, &pd.Description, &constraints, &pd.Difficulty,
-		&pd.AuthorID, &pd.Status, &pd.SolutionLanguage, &pd.SolutionCode, &pd.FailureReason,
+		&pd.AuthorID, &pd.Status, &pd.FailureReason,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get problem by slug: %w", err)
@@ -353,14 +354,28 @@ func (s *serviceImpl) RunCode(ctx context.Context, userID, problemID int, langua
 	defer cancel()
 
 	var submissionID int
-	err := s.db.QueryRowContext(ctx, insertSubmission, userID, problemID, language, code).Scan(&submissionID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to insert submission: %w", err)
-	}
+	// err := s.db.QueryRowContext(ctx, insertSubmission, userID, problemID, language, code).Scan(&submissionID)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("failed to insert submission: %w", err)
+	// }
+
+	// TODO: Add to the database
+	submissionID = len(s.submissions) + 1
+	s.submissions = append(s.submissions, Submission{
+		ID:        submissionID,
+		ProblemID: &problemID,
+		UserID:    userID,
+		ContestID: nil,
+		Language:  language,
+		Code:      code,
+		Status:    "pending",
+		Message:   "",
+		Results:   nil,
+	})
 
 	// Fetch time/memory limits from DB
 	var timeLimitMS, memoryLimitKB int
-	err = s.db.QueryRowContext(ctx, limitsQuery, problemID, language).Scan(&timeLimitMS, &memoryLimitKB)
+	err := s.db.QueryRowContext(ctx, limitsQuery, problemID, language).Scan(&timeLimitMS, &memoryLimitKB)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			timeLimitMS = defaultTimeLimitMS
@@ -406,34 +421,37 @@ func (s *serviceImpl) GetRunResult(ctx context.Context, runID int) (Submission, 
 	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
 	defer cancel()
 
-	err := s.db.QueryRowContext(ctx, submissionQuery, runID).Scan(
-		&sub.ID, &sub.UserID, &sub.ProblemID, &sub.ContestID,
-		&sub.Language, &sub.Code, &sub.Status, &sub.Message,
-	)
-	if err != nil {
-		return Submission{}, fmt.Errorf("submission not found: %w", err)
-	}
+	// err := s.db.QueryRowContext(ctx, submissionQuery, runID).Scan(
+	// 	&sub.ID, &sub.UserID, &sub.ProblemID, &sub.ContestID,
+	// 	&sub.Language, &sub.Code, &sub.Status, &sub.Message,
+	// )
+	// if err != nil {
+	// 	return Submission{}, fmt.Errorf("submission not found: %w", err)
+	// }
 
-	// Get test results
-	const resultsQuery = `
-		SELECT id, status, stdout, stderr, runtime_ms, memory_kb
-		FROM test_results WHERE submission_id = $1;
-	`
+	// // Get test results
+	// const resultsQuery = `
+	// 	SELECT id, status, stdout, stderr, runtime_ms, memory_kb
+	// 	FROM test_results WHERE submission_id = $1;
+	// `
 
-	rows, err := s.db.QueryContext(ctx, resultsQuery, runID)
-	if err != nil {
-		return Submission{}, fmt.Errorf("failed to fetch test results: %w", err)
-	}
-	defer rows.Close()
+	// rows, err := s.db.QueryContext(ctx, resultsQuery, runID)
+	// if err != nil {
+	// 	return Submission{}, fmt.Errorf("failed to fetch test results: %w", err)
+	// }
+	// defer rows.Close()
 
-	for rows.Next() {
-		var res TestResult
-		err := rows.Scan(&res.ID, &res.Status, &res.StdOut, &res.StdErr, &res.RuntimeMS, &res.MemoryKB)
-		if err != nil {
-			return Submission{}, fmt.Errorf("error scanning test result: %w", err)
-		}
-		sub.Results = append(sub.Results, res)
-	}
+	// for rows.Next() {
+	// 	var res TestResult
+	// 	err := rows.Scan(&res.ID, &res.Status, &res.Output, &res.ExpectedOutput, &res.RuntimeMS, &res.MemoryKB)
+	// 	if err != nil {
+	// 		return Submission{}, fmt.Errorf("error scanning test result: %w", err)
+	// 	}
+	// 	sub.Results = append(sub.Results, res)
+	// }
+
+	// TODO: Fetch from the database
+	sub = s.submissions[runID-1]
 
 	return sub, nil
 }
@@ -459,10 +477,24 @@ func (s *serviceImpl) SubmitCode(ctx context.Context, userID, problemID int, lan
 
 	// Insert the submission
 	var submissionID int
-	err := s.db.QueryRowContext(ctx, insertSubmission, userID, problemID, language, code).Scan(&submissionID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to insert submission: %w", err)
-	}
+	// err := s.db.QueryRowContext(ctx, insertSubmission, userID, problemID, language, code).Scan(&submissionID)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("failed to insert submission: %w", err)
+	// }
+
+	// TODO: Add to the database
+	submissionID = len(s.submissions) + 1
+	s.submissions = append(s.submissions, Submission{
+		ID:        submissionID,
+		ProblemID: &problemID,
+		UserID:    userID,
+		ContestID: nil,
+		Language:  language,
+		Code:      code,
+		Status:    "pending",
+		Message:   "",
+		Results:   nil,
+	})
 
 	// Fetch test cases
 	rows, err := s.db.QueryContext(ctx, getTestCases, problemID)
@@ -800,14 +832,75 @@ func (s *serviceImpl) GetDiscussionByID(ctx context.Context, discussionID int) (
 
 func (s *serviceImpl) AddVoteToDiscussion(ctx context.Context, userID, discussionID int, vote Vote) error {
 	const query = `
-		INSERT INTO discussion_votes (user_id, discussion_id, vote)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, discussion_id) DO UPDATE SET vote = EXCLUDED.vote;
+	INSERT INTO discussion_votes (user_id, discussion_id, vote)
+	VALUES ($1, $2, $3)
+	ON CONFLICT (user_id, discussion_id) DO UPDATE SET vote = EXCLUDED.vote;
 	`
 
 	_, err := s.db.ExecContext(ctx, query, userID, discussionID, int(vote))
 	if err != nil {
 		return fmt.Errorf("failed to vote on discussion: %w", err)
 	}
+	return nil
+}
+
+func (s *serviceImpl) UpdateSubmission(ctx context.Context, submission *Submission) error {
+	// // Define the SQL queries for updating the submission and inserting test results
+	// const submissionQuery = `
+	// 	UPDATE submissions
+	// 	SET status = $1, message = $2
+	// 	WHERE id = $3
+	// 	RETURNING id;
+	// `
+
+	// // Start a transaction to ensure atomicity
+	// tx, err := s.db.BeginTx(ctx, nil)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to begin transaction: %w", err)
+	// }
+	// defer tx.Rollback()
+
+	// // Update the submission status and message
+	// var updatedID int
+	// err = tx.QueryRowContext(ctx, submissionQuery, submission.Status, submission.Message, submission.ID).Scan(&updatedID)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to update submission: %w", err)
+	// }
+
+	// // Ensure that the updated submission ID matches the provided ID
+	// if updatedID != submission.ID {
+	// 	return fmt.Errorf("submission ID mismatch during update")
+	// }
+
+	// // Insert or update the test results for the submission
+	// const testResultQuery = `
+	// 	INSERT INTO test_results (submission_id, status, stdout, stderr, runtime_ms, memory_kb)
+	// 	VALUES ($1, $2, $3, $4, $5, $6)
+	// 	ON CONFLICT (submission_id, id)
+	// 	DO UPDATE SET status = $2, stdout = $3, stderr = $4, runtime_ms = $5, memory_kb = $6;
+	// `
+
+	// // Iterate through the test results and insert/update them
+	// for _, result := range submission.Results {
+	// 	_, err := tx.ExecContext(ctx, testResultQuery, submission.ID, result.Status, result.Output, result.ExpectedOutput, result.RuntimeMS, result.MemoryKB)
+	// 	if err != nil {
+	// 		return fmt.Errorf("failed to update test result: %w", err)
+	// 	}
+	// }
+
+	// // Commit the transaction
+	// if err := tx.Commit(); err != nil {
+	// 	return fmt.Errorf("failed to commit transaction: %w", err)
+	// }
+
+	// TODO: Update into the database
+	if submission.ID > len(s.submissions) {
+		return errors.New("invalid submission")
+	}
+	sub := &s.submissions[submission.ID-1]
+	sub.Message = submission.Message
+	sub.Results = submission.Results
+	sub.Status = submission.Status
+
 	return nil
 }

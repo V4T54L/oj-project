@@ -90,34 +90,36 @@ func startWorker(ctx context.Context, rdb *redis.Client, wg *sync.WaitGroup) {
 }
 
 type ProblemTestCase struct {
-	ID             int    `json:"id"`
-	Input          string `json:"input"`
-	ExpectedOutput string `json:"expected_output"`
+	ID             int
+	Input          string
+	ExpectedOutput string
 }
 
-type TestCaseResult struct {
-	ID             int    `json:"id"`
-	Input          string `json:"input"`
-	Output         string `json:"output"`
-	ExpectedOutput string `json:"expected_output"`
-	RuntimeMS      int    `json:"runtime_ms"`
-	MemoryKB       int    `json:"memory_kb"`
-	Status         string `json:"status"` // TLE, MLE, Acccepted, Wrong Answer, $Error.message
+type TestResult struct {
+	ID             int
+	Status         string
+	Input          string
+	ExpectedOutput string
+	Output         string
+	RuntimeMS      int
+	MemoryKB       int
 }
 
 type ExecuteCodePayload struct {
-	ID             int               `json:"id"`
-	LanguageID     int               `json:"language_id"`
-	Code           string            `json:"code"`
-	TestCases      []ProblemTestCase `json:"test_cases"`
-	RuntimeLimitMS int               `json:"runtime_limit_ms"`
-	MemoryLimitKB  int               `json:"memory_limit_kb"`
-	ExecutionType  string            `json:"execution_type"` // Run, Submit, Validation
+	ID            int
+	Language      string
+	Code          string
+	TestCases     []ProblemTestCase
+	TimeLimitMS   int
+	MemoryLimitKB int
+	ExecutionType string // Run, Submit, Validation
+	Points        int
+	Penalty       int
 }
 
 type ExecuteCodeResponse struct {
-	ID              int              `json:"id"`
-	Status          string           `json:"status"` // TLE, MLE, Acccepted, Wrong Answer, $Error.message
-	TestCaseResults []TestCaseResult `json:"test_case_results"`
-	ExecutionType   string           `json:"execution_type"` // Run, Submit, Validation
+	SubmissionID  int
+	Results       []TestResult
+	ExecutionType string
+	ScoreDelta    int
 }

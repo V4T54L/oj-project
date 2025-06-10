@@ -41,16 +41,15 @@ func ExecutePython(payload ExecuteCodePayload) (response ExecuteCodeResponse) {
 	if err != nil {
 		log.Println("Failed to write source file:", err)
 		return ExecuteCodeResponse{
-			ID:            payload.ID,
-			Status:        "Error writing source file",
+			SubmissionID:  payload.ID,
 			ExecutionType: payload.ExecutionType,
 		}
 	}
 
-	var results []TestCaseResult
-	finalStatus := "Accepted"
+	var results []TestResult
+	// finalStatus := "Accepted"
 	for _, tc := range payload.TestCases {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(payload.RuntimeLimitMS)*time.Millisecond)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(payload.TimeLimitMS)*time.Millisecond)
 		defer cancel()
 
 		cmd := exec.CommandContext(ctx, "python3", sourcePath)
@@ -62,7 +61,7 @@ func ExecutePython(payload ExecuteCodePayload) (response ExecuteCodeResponse) {
 
 		start := time.Now()
 		if err := cmd.Start(); err != nil {
-			results = append(results, TestCaseResult{
+			results = append(results, TestResult{
 				ID:             tc.ID,
 				Input:          tc.Input,
 				Output:         "",
@@ -71,7 +70,7 @@ func ExecutePython(payload ExecuteCodePayload) (response ExecuteCodeResponse) {
 				MemoryKB:       0,
 				Status:         "Error: " + err.Error(),
 			})
-			finalStatus = "Error"
+			// finalStatus = "Error"
 			continue
 		}
 
@@ -104,9 +103,9 @@ func ExecutePython(payload ExecuteCodePayload) (response ExecuteCodeResponse) {
 				break loop
 			case err := <-done:
 				if err != nil {
-					status = "Error"
+					status = "error"
 				} else {
-					status = "Accepted"
+					status = "accepted"
 				}
 				break loop
 			}
@@ -116,15 +115,15 @@ func ExecutePython(payload ExecuteCodePayload) (response ExecuteCodeResponse) {
 		output := strings.TrimSpace(outBuf.String())
 		expected := strings.TrimSpace(tc.ExpectedOutput)
 
-		if status == "Accepted" && output != expected {
-			status = "Wrong Answer"
+		if status == "accepted" && output != expected {
+			status = "wrong answer"
 		}
 
-		if status != "Accepted" {
-			finalStatus = status
-		}
+		// if status != "Accepted" {
+		// 	finalStatus = status
+		// }
 
-		results = append(results, TestCaseResult{
+		results = append(results, TestResult{
 			ID:             tc.ID,
 			Input:          tc.Input,
 			Output:         output,
@@ -136,10 +135,10 @@ func ExecutePython(payload ExecuteCodePayload) (response ExecuteCodeResponse) {
 	}
 
 	response = ExecuteCodeResponse{
-		ID:              payload.ID,
-		Status:          finalStatus,
-		ExecutionType:   payload.ExecutionType,
-		TestCaseResults: results,
+		SubmissionID:  payload.ID,
+		ExecutionType: payload.ExecutionType,
+		Results:       results,
+		ScoreDelta:    0,
 	}
 	return response
 }

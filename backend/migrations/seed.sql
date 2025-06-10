@@ -6,10 +6,10 @@ INSERT INTO users (username, hashed_password, email, role, rating) VALUES
 ('bob', 'pass_hash', 'bob@example.com', 'user', 1600);
 
 -- Problems Table
-INSERT INTO problems (title, description, difficulty, author_id, status, solution_language, solution_code) VALUES
-('Two Sum', 'Given an array of integers, return indices of the two numbers such that they add up to a specific target.', 'easy', 1, 'active', 'python', 'def two_sum(nums, target):\n  ...'),
-('Longest Substring Without Repeating Characters', 'Given a string, find the length of the longest substring without repeating characters.', 'medium', 2, 'active', 'cpp', 'int lengthOfLongestSubstring(string s) {\n  ...'),
-('N-Queens Problem', 'Solve the N-Queens problem where you must place N queens on an N x N chessboard such that no two queens threaten each other.', 'hard', 3, 'draft', 'java', 'public class Solution {\n  ...');
+INSERT INTO problems (title, description, difficulty, author_id, status, solution_language, solution_code, slug) VALUES
+('Two Sum', 'Given an array of integers, return indices of the two numbers such that they add up to a specific target.', 'easy', 1, 'active', 'python', 'def two_sum(nums, target):\n  ...','two-sum'),
+('Longest Substring Without Repeating Characters', 'Given a string, find the length of the longest substring without repeating characters.', 'medium', 2, 'active', 'cpp', 'int lengthOfLongestSubstring(string s) {\n  ...','longest-substr'),
+('N-Queens Problem', 'Solve the N-Queens problem where you must place N queens on an N x N chessboard such that no two queens threaten each other.', 'hard', 3, 'draft', 'java', 'public class Solution {\n  ...','n-queens');
 
 -- Problem Tags Table
 INSERT INTO problem_tags (problem_id, tag) VALUES

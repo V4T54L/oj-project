@@ -36,7 +36,35 @@ func main() {
 	var wg sync.WaitGroup
 
 	redisService.StartResultWorker(ctx, func(er *ExecutionResponse) {
-		log.Printf("\n\n\n### Results received:\n ID: %d \n Type: %s \n\n\n", er.SubmissionID, er.ExecutionType)
+		status, runtime, memory := "Accepted", 0, 0
+		for i, v := range er.Results {
+			if v.RuntimeMS > runtime {
+				runtime = v.RuntimeMS
+			}
+			if v.MemoryKB > memory {
+				memory = v.MemoryKB
+			}
+			if v.Status != "Accepted" {
+				status = fmt.Sprintf("%s on Test Case : %d", v.Status, i+1)
+			}
+		}
+		log.Println("Result received: ", status, runtime, memory)
+		if er.ExecutionType == EXECUTION_RUN || er.ExecutionType == EXECUTION_SUBMIT {
+			err := srv.UpdateSubmission(ctx, &Submission{
+				ID:      er.SubmissionID,
+				Status:  status,
+				// Status:  "accepted",
+				Message: "<Placeholder for message>",
+				Results: er.Results,
+			})
+			if err != nil {
+				log.Println("\n\n\nError updating the submission: ", err.Error())
+			} else {
+				log.Println("\n\n\nSumission updated successfully for ID : ", er.SubmissionID)
+			}
+		} else if er.ExecutionType == "validation" {
+			// srv.UpdateProblemStatusByID(ctx, er.ID, status)
+		}
 	}, &wg)
 
 	// Set up the server

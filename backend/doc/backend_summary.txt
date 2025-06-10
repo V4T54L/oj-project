@@ -45,7 +45,7 @@ Schemas:
 * ProblemInfo: ID (int), Title (string), Tags (List[string]), Difficulty (Difficulty)
 * ProblemDetail: ID (int), Title (string), Description (string), Constraints (List[string]), Slug (string), Tags (List[string]), Difficulty (Difficulty), AuthorID (int), Status (ProblemStatus), SolutionLanguage (Language), SolutionCode (string), TestCases (List[TestCase]), Limits (List[Limits]), FailureReason (string)
 * Submission: ID (int), ProblemID (int), UserID (int), ContestID (int), Language (Language), Code (string), Status (string), Message (string), Results (List[TestResult])
-* TestResult: ID (int), Status (SubmissionStatus), StdOut (string), StdErr (string), RuntimeMS (int), MemoryKB (int)
+* TestResult: ID (int), Status (SubmissionStatus), Input (string), ExpectedOutput (string), Output (string), RuntimeMS (int), MemoryKB (int)
 * ContestParticipant: UserID (int), Username (string), Score (int), ProblemsSolved (List[ContestProblem]), RatingChange (int)
 * ContestProblem: ProblemInfo (ProblemInfo), MaxPoints (int)
 * Contest: ID (int), Name (string), Status (ContestStatus), StartTime (string, date-time), EndTime (string, date-time), Problems (List[ContestProblem]), Leaderboard (List[ContestParticipant])
@@ -60,5 +60,5 @@ Schemas:
 * idResp: id (int)
 * TestCase: ID (int), Input (string), ExpectedOutput (string)
 * Limits: ProblemID (int), Language (Language), TimeLimitMS (int), MemoryLimitKB (int)
-
+ 
 ---

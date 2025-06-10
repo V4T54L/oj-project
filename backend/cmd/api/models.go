@@ -79,12 +79,13 @@ type Submission struct {
 }
 
 type TestResult struct {
-	ID        int
-	Status    SubmissionStatus
-	StdOut    string
-	StdErr    string
-	RuntimeMS int
-	MemoryKB  int
+	ID             int
+	Status         string
+	Input          string
+	ExpectedOutput string
+	Output         string
+	RuntimeMS      int
+	MemoryKB       int
 }
 
 type ContestParticipant struct {
