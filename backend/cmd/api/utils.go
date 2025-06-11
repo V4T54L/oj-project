@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -28,4 +29,8 @@ func setAuthCookie(w http.ResponseWriter, token string) {
 		SameSite: http.SameSiteStrictMode,
 		Expires:  time.Now().Add(24 * time.Hour),
 	})
+}
+
+func GetContestProblemKey(contestId, problemId int) string {
+	return fmt.Sprintf("%d:%d", contestId, problemId)
 }

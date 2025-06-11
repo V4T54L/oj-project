@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 )
@@ -15,13 +16,14 @@ const (
 )
 
 type serviceImpl struct {
-	db               *sql.DB
-	sendForExecution func(ctx context.Context, payload ExecutionPayload) error
-	submissions      []Submission
+	db                *sql.DB
+	submissions       []Submission
+	contestSubmission []ContestSolvedProblems
+	redis             *RedisService
 }
 
-func NewService(db *sql.DB, sendForExecution func(ctx context.Context, payload ExecutionPayload) error) *serviceImpl {
-	return &serviceImpl{db: db, sendForExecution: sendForExecution, submissions: make([]Submission, 0)}
+func NewService(db *sql.DB, redis *RedisService) *serviceImpl {
+	return &serviceImpl{db: db, redis: redis, submissions: make([]Submission, 0)}
 }
 
 func (s *serviceImpl) Register(ctx context.Context, username, email, password string) (int, string, error) {
@@ -344,16 +346,16 @@ func (s *serviceImpl) GetProblemBySlug(ctx context.Context, slug string) (*Probl
 
 func (s *serviceImpl) RunCode(ctx context.Context, userID, problemID int, language Language, code string, testCases []TestCase) (int, error) {
 	const limitsQuery = `SELECT time_limit_ms, memory_limit_kb FROM limits WHERE problem_id=$1 and language=$2;`
-	const insertSubmission = `
-		INSERT INTO submissions (user_id, problem_id, language, code, status, message)
-		VALUES ($1, $2, $3, $4, 'pending', '')
-		RETURNING id;
-	`
+	// const insertSubmission = `
+	// 	INSERT INTO submissions (user_id, problem_id, language, code, status, message)
+	// 	VALUES ($1, $2, $3, $4, 'pending', '')
+	// 	RETURNING id;
+	// `
 
 	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
 	defer cancel()
 
-	var submissionID int
+	submissionID := 0
 	// err := s.db.QueryRowContext(ctx, insertSubmission, userID, problemID, language, code).Scan(&submissionID)
 	// if err != nil {
 	// 	return 0, fmt.Errorf("failed to insert submission: %w", err)
@@ -401,25 +403,25 @@ func (s *serviceImpl) RunCode(ctx context.Context, userID, problemID int, langua
 		TimeLimitMS:   timeLimitMS,
 		MemoryLimitKB: memoryLimitKB,
 		ExecutionType: EXECUTION_RUN,
-		Points:        0,
-		Penalty:       0,
+		ContestID:     0,
+		ProblemID:     0,
 	}
 
 	// Send to executor/queue here if needed
-	s.sendForExecution(ctx, payload)
+	s.redis.ExecuteCode(ctx, payload)
 
 	return submissionID, nil
 }
 
 func (s *serviceImpl) GetRunResult(ctx context.Context, runID int) (Submission, error) {
-	const submissionQuery = `
-		SELECT id, user_id, problem_id, contest_id, language, code, status, message
-		FROM submissions WHERE id = $1;
-	`
+	// const submissionQuery = `
+	// 	SELECT id, user_id, problem_id, contest_id, language, code, status, message
+	// 	FROM submissions WHERE id = $1;
+	// `
 
-	var sub Submission
-	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
-	defer cancel()
+	// var sub Submission
+	// ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
+	// defer cancel()
 
 	// err := s.db.QueryRowContext(ctx, submissionQuery, runID).Scan(
 	// 	&sub.ID, &sub.UserID, &sub.ProblemID, &sub.ContestID,
@@ -451,17 +453,17 @@ func (s *serviceImpl) GetRunResult(ctx context.Context, runID int) (Submission, 
 	// }
 
 	// TODO: Fetch from the database
-	sub = s.submissions[runID-1]
+	sub := s.submissions[runID-1]
 
 	return sub, nil
 }
 
-func (s *serviceImpl) SubmitCode(ctx context.Context, userID, problemID int, language Language, code string) (int, error) {
-	const insertSubmission = `
-		INSERT INTO submissions (user_id, problem_id, language, code, status, message)
-		VALUES ($1, $2, $3, $4, 'pending', '')
-		RETURNING id;
-	`
+func (s *serviceImpl) SubmitCode(ctx context.Context, userID, problemID, contestID int, language Language, code string) (int, error) {
+	// const insertSubmission = `
+	// 	INSERT INTO submissions (user_id, problem_id, language, code, status, message)
+	// 	VALUES ($1, $2, $3, $4, 'pending', '')
+	// 	RETURNING id;
+	// `
 	const getTestCases = `SELECT id, input, expected_output FROM test_cases WHERE problem_id = $1;`
 	const getLimits = `SELECT time_limit_ms, memory_limit_kb FROM limits WHERE problem_id = $1 AND language = $2;`
 
@@ -476,7 +478,7 @@ func (s *serviceImpl) SubmitCode(ctx context.Context, userID, problemID int, lan
 	defer cancel()
 
 	// Insert the submission
-	var submissionID int
+	submissionID := 0
 	// err := s.db.QueryRowContext(ctx, insertSubmission, userID, problemID, language, code).Scan(&submissionID)
 	// if err != nil {
 	// 	return 0, fmt.Errorf("failed to insert submission: %w", err)
@@ -488,7 +490,7 @@ func (s *serviceImpl) SubmitCode(ctx context.Context, userID, problemID int, lan
 		ID:        submissionID,
 		ProblemID: &problemID,
 		UserID:    userID,
-		ContestID: nil,
+		ContestID: &contestID,
 		Language:  language,
 		Code:      code,
 		Status:    "pending",
@@ -541,12 +543,12 @@ func (s *serviceImpl) SubmitCode(ctx context.Context, userID, problemID int, lan
 		TimeLimitMS:   timeLimitMS,
 		MemoryLimitKB: memoryLimitKB,
 		ExecutionType: EXECUTION_SUBMIT,
-		Points:        0,
-		Penalty:       0,
+		ContestID:     contestID,
+		ProblemID:     problemID,
 	}
 
 	// Send for execution
-	s.sendForExecution(ctx, payload)
+	s.redis.ExecuteCode(ctx, payload)
 
 	return submissionID, nil
 }
@@ -713,33 +715,80 @@ func (s *serviceImpl) JoinContestByID(ctx context.Context, userID, contestID int
 	return nil
 }
 
-func (s *serviceImpl) StartContest(ctx context.Context, contestID int) error { return nil } // Add contest details to cache
+// func (s *serviceImpl) StartContest(ctx context.Context, contestID int) error { return nil } // Add contest details to cache
 
-func (s *serviceImpl) EndContest(ctx context.Context, contestID int) error { return nil } // Remove contest from thhe cache
+// func (s *serviceImpl) EndContest(ctx context.Context, contestID int) error { return nil } // Remove contest from thhe cache
 
 func (s *serviceImpl) GetLeaderboard(ctx context.Context, contestID int) ([]ContestParticipant, error) {
-	const query = `
-		SELECT u.id, u.username, cp.score, cp.rating_change
-		FROM contest_participants cp
-		JOIN users u ON cp.user_id = u.id
-		WHERE cp.contest_id = $1
-		ORDER BY cp.score DESC;
-	`
+	// const query = `
+	// 	SELECT u.id, u.username, cp.score, cp.rating_change
+	// 	FROM contest_participants cp
+	// 	JOIN users u ON cp.user_id = u.id
+	// 	WHERE cp.contest_id = $1
+	// 	ORDER BY cp.score DESC;
+	// `
 
-	rows, err := s.db.QueryContext(ctx, query, contestID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get leaderboard: %w", err)
-	}
-	defer rows.Close()
+	// rows, err := s.db.QueryContext(ctx, query, contestID)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to get leaderboard: %w", err)
+	// }
+	// defer rows.Close()
 
-	var leaderboard []ContestParticipant
-	for rows.Next() {
-		var p ContestParticipant
-		if err := rows.Scan(&p.UserID, &p.Username, &p.Score, &p.RatingChange); err != nil {
-			return nil, err
+	// var leaderboard []ContestParticipant
+	// for rows.Next() {
+	// 	var p ContestParticipant
+	// 	if err := rows.Scan(&p.UserID, &p.Username, &p.Score, &p.RatingChange); err != nil {
+	// 		return nil, err
+	// 	}
+	// 	leaderboard = append(leaderboard, p)
+	// }
+
+	// TODO: Use Database
+
+	// Step 1: Initialize a map to store participants and their contest data
+	participantMap := make(map[int]*ContestParticipant)
+
+	// Step 2: Loop through all contest submissions and populate participant data
+	for _, contestSolved := range s.contestSubmission {
+		if contestSolved.ContestID == contestID {
+			// Check if the participant already exists in the map
+			participant, exists := participantMap[contestSolved.UserID]
+			if !exists {
+				// If not, create a new participant entry
+				participant = &ContestParticipant{
+					UserID:         contestSolved.UserID,
+					Score:          0,
+					ProblemsSolved: []ContestProblem{},
+					RatingChange:   0, // Assuming rating change can be tracked separately
+				}
+				participantMap[contestSolved.UserID] = participant
+			}
+
+			// Step 3: Update the participant's score and problems solved
+			// Assuming each ContestSolvedProblem has a ScoreDelta that represents the points for the problem
+			participant.Score += contestSolved.ScoreDelta
+
+			// Create a ContestProblem object that contains problem details (assuming you have such a struct)
+			contestProblem := ContestProblem{
+				ProblemInfo: &ProblemInfo{ID: contestSolved.ProblemID, Title: "<Placeholder>",
+					Tags: []string{"Placeholder"}, Difficulty: DIFFICULTY_EASY, Slug: fmt.Sprintf("placehodler %d", contestSolved.ProblemID)},
+			}
+
+			// Add the problem to the list of solved problems
+			participant.ProblemsSolved = append(participant.ProblemsSolved, contestProblem)
 		}
-		leaderboard = append(leaderboard, p)
 	}
+
+	// Step 4: Convert the map to a slice for sorting
+	leaderboard := make([]ContestParticipant, 0, len(participantMap))
+	for _, participant := range participantMap {
+		leaderboard = append(leaderboard, *participant)
+	}
+
+	// Step 5: Sort the leaderboard by score in descending order
+	sort.SliceStable(leaderboard, func(i, j int) bool {
+		return leaderboard[i].Score > leaderboard[j].Score
+	})
 
 	return leaderboard, nil
 }
@@ -894,13 +943,51 @@ func (s *serviceImpl) UpdateSubmission(ctx context.Context, submission *Submissi
 	// }
 
 	// TODO: Update into the database
-	if submission.ID > len(s.submissions) {
+	// Step 1: Validate the submission ID
+	if submission.ID > len(s.submissions) || submission.ID <= 0 {
 		return errors.New("invalid submission")
 	}
+
+	// Step 2: Update the submission details
 	sub := &s.submissions[submission.ID-1]
 	sub.Message = submission.Message
 	sub.Results = submission.Results
 	sub.Status = submission.Status
+
+	// Step 3: Handle contest-specific logic
+	if submission.ContestID != nil && *submission.ContestID > 0 {
+		// Initialize points structure to hold cache data
+		points := CachePoints{Points: 0}
+
+		// Step 4: Attempt to fetch the contest problem data from Redis
+		err := s.redis.Get(ctx, GetContestProblemKey(*submission.ContestID, *submission.ProblemID), &points)
+		if err != nil {
+			// Cache lookup failed (either contest is over or invalid submission)
+			// We do nothing here as per the provided logic
+			return nil
+		}
+
+		// Step 5: Check if the contest problem has already been solved by this user
+		// Check if the contest and problem combination exists for this user
+		for _, contestSolved := range s.contestSubmission {
+			if contestSolved.UserID == submission.UserID && contestSolved.ContestID == *submission.ContestID && contestSolved.ProblemID == *submission.ProblemID {
+				// This contest problem has already been solved by the user, no need to add it again
+				return nil
+			}
+		}
+
+		// Step 6: If not already solved, add a new ContestSolvedProblems entry
+		newContestSolved := ContestSolvedProblems{
+			ContestID:  *submission.ContestID,
+			UserID:     submission.UserID,
+			ProblemID:  *submission.ProblemID,
+			SolvedAt:   int(time.Now().Unix()), // Record the timestamp of when the problem was solved
+			ScoreDelta: points.Points,          // Using the points fetched from the cache
+		}
+
+		// Add to the contestSubmission list
+		s.contestSubmission = append(s.contestSubmission, newContestSolved)
+	}
 
 	return nil
 }

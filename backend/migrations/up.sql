@@ -1,14 +1,19 @@
 CREATE TYPE user_role AS ENUM ('user', 'admin');
+
 CREATE TYPE problem_status AS ENUM ('draft', 'validate', 'active', 'rejected', 'archieved');
+
 CREATE TYPE submission_status AS ENUM (
     'pending', 'accepted', 'wrong answer', 'time limit exceeded',
     'memory limit exceeded', 'compilation error', 'runtime error'
 );
-CREATE TYPE contest_status AS ENUM ('waiting', 'running', 'ended', 'cancelled');
-CREATE TYPE language AS ENUM ('go', 'python', 'cpp', 'java', 'c');
-CREATE TYPE difficulty AS ENUM ('easy', 'medium', 'hard');
-CREATE TYPE execution_type AS ENUM ('run', 'submit', 'contest', 'validate');
 
+CREATE TYPE contest_status AS ENUM ('waiting', 'running', 'ended', 'cancelled');
+
+CREATE TYPE language AS ENUM ('go', 'python', 'cpp', 'java', 'c');
+
+CREATE TYPE difficulty AS ENUM ('easy', 'medium', 'hard');
+
+CREATE TYPE execution_type AS ENUM ('run', 'submit', 'contest', 'validate');
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
@@ -122,6 +127,7 @@ CREATE TABLE contest_solved_problems (
     user_id INT,
     problem_id INT,
     solved_at TIMESTAMPTZ,
+    score_delta INT,
     PRIMARY KEY (
         contest_id,
         user_id,

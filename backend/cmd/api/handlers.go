@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -13,10 +14,11 @@ import (
 
 type Handler struct {
 	service *serviceImpl
+	redis   *RedisService
 }
 
-func NewHandler(service *serviceImpl) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *serviceImpl, redis *RedisService) *Handler {
+	return &Handler{service: service, redis: redis}
 }
 
 func (h *Handler) Routes() http.Handler {
@@ -248,7 +250,7 @@ func (h *Handler) SubmitCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := h.service.SubmitCode(r.Context(), userID, sub.ProblemID, sub.Language, sub.Code)
+	id, err := h.service.SubmitCode(r.Context(), userID, sub.ProblemID, sub.ContestID, sub.Language, sub.Code)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -356,20 +358,54 @@ func (h *Handler) JoinContest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) StartContest(w http.ResponseWriter, r *http.Request) {
-	contestID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	if err := h.service.StartContest(r.Context(), contestID); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	contestID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid contest ID", http.StatusBadRequest)
 		return
 	}
+
+	// Retrieve the contest data
+	contest, err := h.service.GetContestByID(r.Context(), contestID)
+	if err != nil {
+		http.Error(w, "Failed to fetch contest: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Cache each problem's max points in Redis
+	for _, problem := range contest.Problems {
+		key := GetContestProblemKey(contestID, problem.ID)
+		value := CachePoints{Points: problem.MaxPoints}
+		err := h.redis.Set(r.Context(), key, value, 4*time.Hour)
+		if err != nil {
+			// Log the error but continue processing other problems
+			// log.Printf("Failed to cache problem %d: %v", problem.ID, err)
+			continue
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *Handler) EndContest(w http.ResponseWriter, r *http.Request) {
-	contestID, _ := strconv.Atoi(chi.URLParam(r, "id"))
-	if err := h.service.EndContest(r.Context(), contestID); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	contestID, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		http.Error(w, "Invalid contest ID", http.StatusBadRequest)
 		return
 	}
+
+
+	// Optionally: remove cached contest problem data from Redis
+	contest, err := h.service.GetContestByID(r.Context(), contestID)
+	if err == nil {
+		for _, problem := range contest.Problems {
+			key := GetContestProblemKey(contestID, problem.ID)
+			_ = h.redis.Delete(r.Context(), key)
+			// if err != nil {
+			// 	log.Printf("Failed to delete key: %v", err)
+			// }
+		}
+	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

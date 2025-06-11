@@ -119,15 +119,16 @@ type ExecutionPayload struct {
 	TimeLimitMS   int
 	MemoryLimitKB int
 	ExecutionType ExecutionType
-	Points        int
-	Penalty       int
+	ContestID     int
+	ProblemID     int
 }
 
 type ExecutionResponse struct {
 	SubmissionID  int
 	Results       []TestResult
 	ExecutionType ExecutionType
-	ScoreDelta    int
+	ContestID     int
+	ProblemID     int
 }
 
 type Discussion struct {
@@ -174,4 +175,17 @@ type SubmissionPayload struct {
 	ProblemID int
 	Language  Language
 	Code      string
+	ContestID int
+}
+
+type CachePoints struct {
+	Points int
+}
+
+type ContestSolvedProblems struct {
+	ContestID int
+	UserID int
+	ProblemID int
+	SolvedAt int
+	ScoreDelta int
 }

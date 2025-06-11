@@ -71,3 +71,26 @@ func (r *RedisService) ExecuteCode(ctx context.Context, payload ExecutionPayload
 	}
 	return r.client.RPush(ctx, string(payload.Language), data).Err()
 }
+
+// Set caches a key-value pair with an optional expiration time.
+func (r *RedisService) Set(ctx context.Context, key string, value interface{}, expiration time.Duration) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return r.client.Set(ctx, key, data, expiration).Err()
+}
+
+// Get retrieves a value from the cache and unmarshals it into the provided destination.
+func (r *RedisService) Get(ctx context.Context, key string, dest interface{}) error {
+	data, err := r.client.Get(ctx, key).Result()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(data), dest)
+}
+
+// Delete removes a key from the Redis cache.
+func (r *RedisService) Delete(ctx context.Context, key string) error {
+	return r.client.Del(ctx, key).Err()
+}

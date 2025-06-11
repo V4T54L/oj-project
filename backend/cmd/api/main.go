@@ -24,9 +24,9 @@ func main() {
 
 	db := postgres.conn
 
-	srv := NewService(db, redisService.ExecuteCode)
+	srv := NewService(db, redisService)
 
-	h := NewHandler(srv)
+	h := NewHandler(srv, redisService)
 	// Set up the routes
 	r := h.Routes()
 
@@ -51,8 +51,8 @@ func main() {
 		log.Println("Result received: ", status, runtime, memory)
 		if er.ExecutionType == EXECUTION_RUN || er.ExecutionType == EXECUTION_SUBMIT {
 			err := srv.UpdateSubmission(ctx, &Submission{
-				ID:      er.SubmissionID,
-				Status:  status,
+				ID:     er.SubmissionID,
+				Status: status,
 				// Status:  "accepted",
 				Message: "<Placeholder for message>",
 				Results: er.Results,
