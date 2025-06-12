@@ -5,6 +5,7 @@ import ProblemDetailPage from "./pages/ProblemDetailPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ContestListPage from "./pages/ContestListPage";
 import ContestDetailPage from "./pages/ContestDetailPage";
+import ContestProblemPage from "./pages/ContestProblemPage";
 import Navbar from "./components/Navbar";
 import { useEffect, useState } from "react";
 import { getCurrentUser } from "./api/endpoints";
@@ -38,6 +39,7 @@ const App = () => {
           <Route path="/problems" element={<ProblemListPage />} />
           <Route path="/problem/:slug" element={<ProblemDetailPage />} />
           <Route path="/contests" element={<ContestListPage />} />
+          <Route path="/contest/problem/:slug" element={<ContestProblemPage />} />
           <Route path="/contest/:contestId" element={<ContestDetailPage />} />
           {/* <Route path="/add-problem" element={<AddProblemPage />} /> */}
           <Route path="/profile/:username" element={<UserProfile />} />
