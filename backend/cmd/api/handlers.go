@@ -52,6 +52,7 @@ func (h *Handler) Routes() http.Handler {
 	r.Get("/contest/{id}/leaderboard", h.GetLeaderboard)
 
 	r.Get("/discussion/{id}", h.GetDiscussionByID)
+	r.Get("/problems/{problemId}/discussions", h.GetDiscussionsByProblemID)
 
 	// Protected routes
 	r.Group(func(protected chi.Router) {
@@ -393,7 +394,6 @@ func (h *Handler) EndContest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	// Optionally: remove cached contest problem data from Redis
 	contest, err := h.service.GetContestByID(r.Context(), contestID)
 	if err == nil {
@@ -455,6 +455,16 @@ func (h *Handler) UpdateDiscussion(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetDiscussionByID(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 	d, err := h.service.GetDiscussionByID(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(d)
+}
+
+func (h *Handler) GetDiscussionsByProblemID(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "problemId"))
+	d, err := h.service.GetDiscussionsByProblem(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return

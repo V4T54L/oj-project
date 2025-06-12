@@ -4,6 +4,7 @@ import {
   createDiscussion,
   updateDiscussion,
   voteDiscussion,
+  getDiscussions,
 } from '../api/endpoints';
 import type { Discussion, AddVotePayload, Vote } from '../types';
 
@@ -25,12 +26,12 @@ const DiscussionModal: React.FC<Props> = ({ problemID, isOpen, onClose }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
-//   const [loading, setLoading] = useState(false);
+  //   const [loading, setLoading] = useState(false);
 
   // Fetch all discussions (mock: fetch single or multiple if supported)
   const loadDiscussions = async () => {
     try {
-      const { data } = await getDiscussion(problemID); // assumes this returns an array
+      const { data } = await getDiscussions(problemID); // assumes this returns an array
       setDiscussions(Array.isArray(data) ? data : [data]); // support single discussion fallback
     } catch {
       setDiscussions([]);
@@ -59,7 +60,7 @@ const DiscussionModal: React.FC<Props> = ({ problemID, isOpen, onClose }) => {
 
   const handleSave = async () => {
     const payload: Discussion = {
-      ID: selected?.ID || 0,
+      ID: selected?.ID || problemID,
       Title: title.trim(),
       Content: content.trim(),
       Tags: tags.split(',').map((t) => t.trim()).filter(Boolean),

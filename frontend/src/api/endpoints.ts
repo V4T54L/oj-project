@@ -86,6 +86,9 @@ export const joinContest = (id: number) =>
 export const getDiscussion = (id: number) =>
     axios.get<Discussion>(`/discussion/${id}`);
 
+export const getDiscussions = (problemId: number) =>
+    axios.get<Discussion[]>(`/problems/${problemId}/discussions`);
+
 export const createDiscussion = (data: Discussion) =>
     axios.post<IdResponse>('/discussion', data);
 

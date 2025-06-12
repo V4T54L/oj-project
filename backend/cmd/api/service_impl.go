@@ -806,7 +806,7 @@ func (s *serviceImpl) CreateDiscussion(ctx context.Context, discussion *Discussi
 	var discussionID int
 	err := s.db.QueryRowContext(ctx, query,
 		discussion.ID, discussion.Title, discussion.Content,
-		discussion.AuthorID, discussion.IsActive,
+		discussion.AuthorID, true,
 	).Scan(&discussionID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create discussion: %w", err)
@@ -877,6 +877,66 @@ func (s *serviceImpl) GetDiscussionByID(ctx context.Context, discussionID int) (
 	}
 
 	return &d, nil
+}
+
+func (s *serviceImpl) GetDiscussionsByProblem(ctx context.Context, problemID int) ([]Discussion, error) {
+	// Step 1: Query for all discussions related to the given problem ID
+	const baseQuery = `
+        SELECT id, title, content, author_id, is_active
+        FROM discussions WHERE problem_id = $1 AND is_active = TRUE;
+    `
+	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(ctx, baseQuery, problemID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get discussions by problem: %w", err)
+	}
+	defer rows.Close()
+
+	var discussions []Discussion
+	for rows.Next() {
+		var d Discussion
+		err := rows.Scan(&d.ID, &d.Title, &d.Content, &d.AuthorID, &d.IsActive)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan discussion row: %w", err)
+		}
+
+		// Step 2: Count votes for each discussion
+		err = s.db.QueryRowContext(ctx, `
+            SELECT COALESCE(SUM(vote), 0) FROM discussion_votes WHERE discussion_id = $1
+        `, d.ID).Scan(&d.Votes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get vote count for discussion %d: %w", d.ID, err)
+		}
+
+		// Step 3: Retrieve comments for each discussion
+		commentRows, err := s.db.QueryContext(ctx, `
+            SELECT content, author_id FROM discussion_comments WHERE discussion_id = $1 ORDER BY created_at ASC;
+        `, d.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get comments for discussion %d: %w", d.ID, err)
+		}
+		defer commentRows.Close()
+
+		for commentRows.Next() {
+			var comment DiscussionComment
+			if err := commentRows.Scan(&comment.Content, &comment.AuthorID); err != nil {
+				return nil, fmt.Errorf("failed to scan comment row: %w", err)
+			}
+			d.Comments = append(d.Comments, comment)
+		}
+
+		// Add the discussion to the result list
+		discussions = append(discussions, d)
+	}
+
+	// Step 4: Return the list of discussions
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate over discussion rows: %w", err)
+	}
+
+	return discussions, nil
 }
 
 func (s *serviceImpl) AddVoteToDiscussion(ctx context.Context, userID, discussionID int, vote Vote) error {

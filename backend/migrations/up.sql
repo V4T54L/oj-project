@@ -136,29 +136,29 @@ CREATE TABLE contest_solved_problems (
     FOREIGN KEY (contest_id, user_id) REFERENCES contest_participants (contest_id, user_id)
 );
 
--- CREATE TABLE execution_payloads (
---     id SERIAL PRIMARY KEY,
---     language language,
---     code TEXT,
---     time_limit_ms INT,
---     memory_limit_kb INT,
---     execution_type execution_type,
---     points INT,
---     penalty INT
--- );
+CREATE TABLE execution_payloads (
+    id SERIAL PRIMARY KEY,
+    language language,
+    code TEXT,
+    time_limit_ms INT,
+    memory_limit_kb INT,
+    execution_type execution_type,
+    points INT,
+    penalty INT
+);
 
--- CREATE TABLE execution_testcases (
---     payload_id INT REFERENCES execution_payloads (id),
---     testcase_id INT REFERENCES test_cases (id),
---     PRIMARY KEY (payload_id, testcase_id)
--- );
+CREATE TABLE execution_testcases (
+    payload_id INT REFERENCES execution_payloads (id),
+    testcase_id INT REFERENCES test_cases (id),
+    PRIMARY KEY (payload_id, testcase_id)
+);
 
--- CREATE TABLE execution_responses (
---     id SERIAL PRIMARY KEY,
---     submission_id INT REFERENCES submissions (id),
---     execution_type execution_type,
---     score_delta INT
--- );
+CREATE TABLE execution_responses (
+    id SERIAL PRIMARY KEY,
+    submission_id INT REFERENCES submissions (id),
+    execution_type execution_type,
+    score_delta INT
+);
 
 CREATE TABLE discussions (
     id SERIAL PRIMARY KEY,

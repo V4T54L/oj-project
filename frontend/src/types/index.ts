@@ -99,7 +99,7 @@ export interface Contest {
 }
 
 export interface DiscussionComment {
-    ID: number;
+    ID: number
     Content: string;
     AuthorID: number;
 }
