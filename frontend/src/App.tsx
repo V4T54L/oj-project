@@ -6,6 +6,8 @@ import NotFoundPage from "./pages/NotFoundPage";
 import ContestListPage from "./pages/ContestListPage";
 import ContestDetailPage from "./pages/ContestDetailPage";
 import ContestProblemPage from "./pages/ContestProblemPage";
+import AdminProblemPage from "./pages/AdminProblemPage";
+import ProblemForm from "./components/admin/ProblemForm";
 import Navbar from "./components/Navbar";
 import { useEffect, useState } from "react";
 import { getCurrentUser } from "./api/endpoints";
@@ -34,15 +36,18 @@ const App = () => {
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <Navbar user={user} />
         <Routes>
-          <Route path="/" element={<Navigate to="/problems" />} />
-          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/" element={<Navigate to="/problems" getUserProfile={getCurrentUserProfile} />} />
+          <Route path="/auth" element={<AuthPage getUserProfile={getCurrentUserProfile} />} />
           <Route path="/problems" element={<ProblemListPage />} />
           <Route path="/problem/:slug" element={<ProblemDetailPage />} />
           <Route path="/contests" element={<ContestListPage />} />
-          <Route path="/contest/problem/:slug" element={<ContestProblemPage />} />
+          <Route path="/contest/:contestId/problem/:slug" element={<ContestProblemPage />} />
           <Route path="/contest/:contestId" element={<ContestDetailPage />} />
           {/* <Route path="/add-problem" element={<AddProblemPage />} /> */}
           <Route path="/profile/:username" element={<UserProfile />} />
+          <Route path="/admin/problems" element={<AdminProblemPage />} />
+          <Route path="/admin/problems/new" element={<ProblemForm />} />
+          <Route path="/admin/problems/edit/:slug" element={<ProblemForm />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>

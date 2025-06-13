@@ -42,6 +42,7 @@ func (h *Handler) Routes() http.Handler {
 
 	r.Post("/signup", h.Signup)
 	r.Post("/login", h.Login)
+	r.Post("/logout", h.Logout)
 	r.Get("/profile/{username}", h.GetUserProfile)
 	r.Get("/problems", h.GetProblems)
 	r.Get("/problem/{slug}", h.GetProblemBySlug)
@@ -59,8 +60,11 @@ func (h *Handler) Routes() http.Handler {
 		protected.Use(AuthMiddleware)
 
 		r.Group(func(admin chi.Router) {
+			admin.Use(AuthMiddleware)
 			admin.Use(AdminOnlyMiddleware)
 
+			admin.Get("/problem-list/{slug}", h.AdminGetProblemBySlug)
+			admin.Get("/problem-list", h.AdminGetProblems)
 			admin.Post("/problems", h.AddProblem)
 			admin.Put("/problems/{id}", h.UpdateProblem)
 
@@ -114,6 +118,11 @@ func (h *Handler) Signup(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"message": "ok"})
 }
 
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	setAuthCookie(w, "")
+	json.NewEncoder(w).Encode(map[string]any{"message": "ok"})
+}
+
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var payload LoginPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -162,8 +171,37 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 
 // --- PROBLEMS ---
 
+func (h *Handler) AdminGetProblemBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	problem, err := h.service.AdminGetProblemBySlug(r.Context(), slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(problem)
+}
+
+func (h *Handler) AdminGetProblems(w http.ResponseWriter, r *http.Request) {
+	problems, err := h.service.AdminGetProblems(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(problems)
+}
+
+func (h *Handler) GetProblemBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	problem, err := h.service.GetProblemBySlug(r.Context(), slug)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(problem)
+}
+
 func (h *Handler) GetProblems(w http.ResponseWriter, r *http.Request) {
-	problems, err := h.service.GetProblems(r.Context())
+	problems, err := h.service.AdminGetProblems(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -197,16 +235,6 @@ func (h *Handler) UpdateProblem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *Handler) GetProblemBySlug(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "slug")
-	problem, err := h.service.GetProblemBySlug(r.Context(), slug)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	json.NewEncoder(w).Encode(problem)
 }
 
 // --- CODE EXECUTION / SUBMISSION ---
@@ -267,6 +295,7 @@ func (h *Handler) GetSubmissionResult(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	sub.Results = make([]TestResult, 0)
 	json.NewEncoder(w).Encode(sub)
 }
 

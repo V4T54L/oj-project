@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const (
@@ -157,6 +159,215 @@ func (s *serviceImpl) GetUserProfile(ctx context.Context, username string) (*Use
 
 }
 
+func (s *serviceImpl) AdminGetProblemBySlug(ctx context.Context, slug string) (*ProblemDetail, error) {
+	const problemQuery = `
+		SELECT id, title, description, constraints, difficulty, author_id, status, 
+		       failure_reason, slug, solution_language, solution_code
+		FROM problems WHERE slug = $1;
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
+	defer cancel()
+
+	var pd ProblemDetail
+	var constraints *string
+	err := s.db.QueryRowContext(ctx, problemQuery, slug).Scan(
+		&pd.ID, &pd.Title, &pd.Description, &constraints, &pd.Difficulty,
+		&pd.AuthorID, &pd.Status, &pd.FailureReason, &pd.Slug, &pd.SolutionLanguage,
+		&pd.SolutionCode,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, errors.New("problem not found")
+		}
+		return nil, fmt.Errorf("failed to get problem by slug %q: %w", slug, err)
+	}
+
+	if constraints != nil {
+		pd.Constraints = strings.Split(*constraints, "\n")
+	}
+
+	// Initialize slices to prevent null JSON
+	pd.Tags = []string{}
+	pd.TestCases = []TestCase{}
+	pd.Limits = []Limits{}
+	pd.Examples = []ProblemExample{}
+
+	// Unified error handling
+	if err := s.loadProblemAssociations(ctx, &pd); err != nil {
+		return nil, err
+	}
+
+	return &pd, nil
+}
+
+func (s *serviceImpl) loadProblemAssociations(ctx context.Context, pd *ProblemDetail) error {
+	// Load tags
+	if err := s.loadTags(ctx, pd); err != nil {
+		return err
+	}
+
+	// Load test cases
+	if err := s.loadTestCases(ctx, pd); err != nil {
+		return err
+	}
+
+	// Load limits
+	if err := s.loadLimits(ctx, pd); err != nil {
+		return err
+	}
+
+	// Load examples
+	return s.loadExamples(ctx, pd)
+}
+
+func (s *serviceImpl) loadTags(ctx context.Context, pd *ProblemDetail) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT tag FROM problem_tags WHERE problem_id = $1`, pd.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get tags: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tag string
+		if err := rows.Scan(&tag); err != nil {
+			return fmt.Errorf("failed to scan tag: %w", err)
+		}
+		pd.Tags = append(pd.Tags, tag)
+	}
+	return rows.Err()
+}
+
+func (s *serviceImpl) loadTestCases(ctx context.Context, pd *ProblemDetail) error {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, input, expected_output FROM test_cases WHERE problem_id = $1`, pd.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get test cases: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tc TestCase
+		if err := rows.Scan(&tc.ID, &tc.Input, &tc.ExpectedOutput); err != nil {
+			return fmt.Errorf("failed to scan test case: %w", err)
+		}
+		pd.TestCases = append(pd.TestCases, tc)
+	}
+	return rows.Err()
+}
+
+func (s *serviceImpl) loadLimits(ctx context.Context, pd *ProblemDetail) error {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT language, time_limit_ms, memory_limit_kb 
+		FROM limits WHERE problem_id = $1
+	`, pd.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get limits: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var l Limits
+		l.ProblemID = pd.ID
+		if err := rows.Scan(&l.Language, &l.TimeLimitMS, &l.MemoryLimitKB); err != nil {
+			return fmt.Errorf("failed to scan limit: %w", err)
+		}
+		pd.Limits = append(pd.Limits, l)
+	}
+	return rows.Err()
+}
+
+func (s *serviceImpl) loadExamples(ctx context.Context, pd *ProblemDetail) error {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, input, expected_output, explanation 
+		FROM problem_examples WHERE problem_id = $1
+	`, pd.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get examples: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var ex ProblemExample
+		if err := rows.Scan(&ex.ID, &ex.Input, &ex.ExpectedOutput, &ex.Explanation); err != nil {
+			return fmt.Errorf("failed to scan example: %w", err)
+		}
+		pd.Examples = append(pd.Examples, ex)
+	}
+	return rows.Err()
+}
+
+func (s *serviceImpl) AdminGetProblems(ctx context.Context) ([]ProblemInfo, error) {
+	const query = `
+		SELECT id, title, difficulty, slug, status
+		FROM problems;
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
+	defer cancel()
+
+	rows, err := s.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch problems: %w", err)
+	}
+	defer rows.Close()
+
+	var problems []ProblemInfo
+	for rows.Next() {
+		var p ProblemInfo
+		if err := rows.Scan(&p.ID, &p.Title, &p.Difficulty, &p.Slug, &p.Status); err != nil {
+			return nil, err
+		}
+
+		// Fetch tags
+		tagRows, err := s.db.QueryContext(ctx, `SELECT tag FROM problem_tags WHERE problem_id = $1`, p.ID)
+		if err == nil {
+			for tagRows.Next() {
+				var tag string
+				tagRows.Scan(&tag)
+				p.Tags = append(p.Tags, tag)
+			}
+			tagRows.Close()
+		}
+
+		problems = append(problems, p)
+	}
+	return problems, nil
+}
+
+func (s *serviceImpl) GetProblemBySlug(ctx context.Context, slug string) (*ProblemDetail, error) {
+	const problemQuery = `
+		SELECT id, title, description, constraints, difficulty, author_id, status, failure_reason
+		FROM problems WHERE slug = $1 and  status = 'active';
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
+	defer cancel()
+
+	var pd ProblemDetail
+	var constraints *string
+	err := s.db.QueryRowContext(ctx, problemQuery, slug).Scan(
+		&pd.ID, &pd.Title, &pd.Description, &constraints, &pd.Difficulty,
+		&pd.AuthorID, &pd.Status, &pd.FailureReason,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get problem by slug: %w", err)
+	}
+	if constraints != nil {
+		pd.Constraints = strings.Split(*constraints, "\n")
+	}
+
+	// Tags
+	_ = s.loadTags(ctx, &pd)
+
+	// Test Cases
+	_ = s.loadExamples(ctx, &pd)
+
+	// Limits
+	_ = s.loadLimits(ctx, &pd)
+
+	return &pd, nil
+}
+
 func (s *serviceImpl) GetProblems(ctx context.Context) ([]ProblemInfo, error) {
 	const query = `
 		SELECT id, title, difficulty, slug
@@ -198,16 +409,26 @@ func (s *serviceImpl) GetProblems(ctx context.Context) ([]ProblemInfo, error) {
 }
 
 func (s *serviceImpl) AddProblem(ctx context.Context, problem *ProblemDetail) (int, error) {
-	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{})
+	if problem == nil {
+		return 0, errors.New("problem cannot be nil")
+	}
+
+	problem.Status = "draft"
+	if problem.Slug == "" {
+		return 0, errors.New("slug is required")
+	}
+
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback()
 
-	// Insert main problem entry
 	const insertProblem = `
-		INSERT INTO problems (title, description, constraints, difficulty, author_id, status, solution_language, solution_code, failure_reason)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO problems (
+			title, description, constraints, slug, difficulty, 
+			author_id, status, solution_language, solution_code
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id;
 	`
 
@@ -215,38 +436,19 @@ func (s *serviceImpl) AddProblem(ctx context.Context, problem *ProblemDetail) (i
 
 	var problemID int
 	err = tx.QueryRowContext(ctx, insertProblem,
-		problem.Title, problem.Description, constraints, problem.Difficulty,
-		problem.AuthorID, problem.Status, problem.SolutionLanguage, problem.SolutionCode,
-		problem.FailureReason,
+		problem.Title, problem.Description, constraints, problem.Slug,
+		problem.Difficulty, problem.AuthorID, problem.Status,
+		problem.SolutionLanguage, problem.SolutionCode,
 	).Scan(&problemID)
 	if err != nil {
+		if isDuplicateErr(err) {
+			return 0, fmt.Errorf("slug %q already exists: %s", problem.Slug, "duplicate entry")
+		}
 		return 0, fmt.Errorf("failed to insert problem: %w", err)
 	}
 
-	// Insert tags
-	for _, tag := range problem.Tags {
-		_, err := tx.ExecContext(ctx, `INSERT INTO problem_tags (problem_id, tag) VALUES ($1, $2)`, problemID, tag)
-		if err != nil {
-			return 0, fmt.Errorf("failed to insert tag '%s': %w", tag, err)
-		}
-	}
-
-	// Insert examples
-	for _, ex := range problem.TestCases {
-		_, err := tx.ExecContext(ctx, `INSERT INTO test_cases (problem_id, input, expected_output) VALUES ($1, $2, $3)`,
-			problemID, ex.Input, ex.ExpectedOutput)
-		if err != nil {
-			return 0, fmt.Errorf("failed to insert test case: %w", err)
-		}
-	}
-
-	// Insert limits
-	for _, limit := range problem.Limits {
-		_, err := tx.ExecContext(ctx, `INSERT INTO limits (problem_id, language, time_limit_ms, memory_limit_kb) VALUES ($1, $2, $3, $4)`,
-			problemID, limit.Language, limit.TimeLimitMS, limit.MemoryLimitKB)
-		if err != nil {
-			return 0, fmt.Errorf("failed to insert limit: %w", err)
-		}
+	if err := s.insertProblemAssociations(ctx, tx, problemID, problem); err != nil {
+		return 0, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -254,6 +456,130 @@ func (s *serviceImpl) AddProblem(ctx context.Context, problem *ProblemDetail) (i
 	}
 
 	return problemID, nil
+}
+
+func (s *serviceImpl) insertProblemAssociations(ctx context.Context, tx *sql.Tx, problemID int, problem *ProblemDetail) error {
+	// Insert tags
+	if err := batchInsertTags(ctx, tx, problemID, problem.Tags); err != nil {
+		return err
+	}
+
+	// Insert examples
+	if err := batchInsertExamples(ctx, tx, problemID, problem.Examples); err != nil {
+		return err
+	}
+
+	// Insert test cases
+	if err := batchInsertTestCases(ctx, tx, problemID, problem.TestCases); err != nil {
+		return err
+	}
+
+	// Insert limits
+	return batchInsertLimits(ctx, tx, problemID, problem.Limits)
+}
+
+func batchInsertTags(ctx context.Context, tx *sql.Tx, problemID int, tags []string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	query := "INSERT INTO problem_tags (problem_id, tag) VALUES "
+	values := make([]interface{}, 0, len(tags)*2)
+	for i, tag := range tags {
+		if i > 0 {
+			query += ","
+		}
+		query += fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
+		values = append(values, problemID, tag)
+	}
+
+	_, err := tx.ExecContext(ctx, query, values...)
+	if err != nil {
+		return fmt.Errorf("failed to insert tags: %w", err)
+	}
+	return nil
+}
+
+func batchInsertExamples(ctx context.Context, tx *sql.Tx, problemID int, examples []ProblemExample) error {
+	if len(examples) == 0 {
+		return nil
+	}
+
+	const baseQuery = `
+		INSERT INTO problem_examples (problem_id, input, expected_output, explanation)
+		VALUES ($1, $2, $3, $4)`
+
+	for _, ex := range examples {
+		_, err := tx.ExecContext(ctx, baseQuery,
+			problemID, ex.Input, ex.ExpectedOutput, ex.Explanation)
+		if err != nil {
+			return fmt.Errorf("failed to insert example (input=%s): %w", shorten(ex.Input), err)
+		}
+	}
+	return nil
+}
+
+func batchInsertTestCases(ctx context.Context, tx *sql.Tx, problemID int, testCases []TestCase) error {
+	if len(testCases) == 0 {
+		return nil
+	}
+
+	const baseQuery = `
+		INSERT INTO test_cases (problem_id, input, expected_output)
+		VALUES ($1, $2, $3)`
+
+	for _, tc := range testCases {
+		_, err := tx.ExecContext(ctx, baseQuery,
+			problemID, tc.Input, tc.ExpectedOutput)
+		if err != nil {
+			return fmt.Errorf("failed to insert test case (input=%s): %w", shorten(tc.Input), err)
+		}
+	}
+	return nil
+}
+
+func batchInsertLimits(ctx context.Context, tx *sql.Tx, problemID int, limits []Limits) error {
+	if len(limits) == 0 {
+		return nil
+	}
+
+	const baseQuery = `
+		INSERT INTO limits (problem_id, language, time_limit_ms, memory_limit_kb)
+		VALUES ($1, $2, $3, $4)`
+
+	for _, l := range limits {
+		if l.TimeLimitMS <= 0 || l.MemoryLimitKB <= 0 {
+			return fmt.Errorf("invalid limits for %s: time=%dms memory=%dkb",
+				l.Language, l.TimeLimitMS, l.MemoryLimitKB)
+		}
+
+		_, err := tx.ExecContext(ctx, baseQuery,
+			problemID, l.Language, l.TimeLimitMS, l.MemoryLimitKB)
+		if err != nil {
+			return fmt.Errorf("failed to insert limits for %s: %w", l.Language, err)
+		}
+	}
+	return nil
+}
+
+// Helper to truncate long input for error messages
+func shorten(s string) string {
+	const maxLen = 20
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
+}
+
+// Helper to detect duplicate key errors
+func isDuplicateErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if pqErr, ok := err.(*pq.Error); ok {
+		return pqErr.Code.Name() == "unique_violation"
+	}
+	return false
 }
 
 func (s *serviceImpl) UpdateProblemByID(ctx context.Context, id int, problem *ProblemDetail) error {
@@ -283,65 +609,6 @@ func (s *serviceImpl) UpdateProblemByID(ctx context.Context, id int, problem *Pr
 		return fmt.Errorf("failed to update problem: %w", err)
 	}
 	return nil
-}
-
-func (s *serviceImpl) GetProblemBySlug(ctx context.Context, slug string) (*ProblemDetail, error) {
-	const problemQuery = `
-		SELECT id, title, description, constraints, difficulty, author_id, status, failure_reason
-		FROM problems WHERE slug = $1;
-	`
-
-	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
-	defer cancel()
-
-	var pd ProblemDetail
-	var constraints *string
-	err := s.db.QueryRowContext(ctx, problemQuery, slug).Scan(
-		&pd.ID, &pd.Title, &pd.Description, &constraints, &pd.Difficulty,
-		&pd.AuthorID, &pd.Status, &pd.FailureReason,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get problem by slug: %w", err)
-	}
-	if constraints != nil {
-		pd.Constraints = strings.Split(*constraints, "\n")
-	}
-
-	// Tags
-	tagRows, err := s.db.QueryContext(ctx, `SELECT tag FROM problem_tags WHERE problem_id = $1`, pd.ID)
-	if err == nil {
-		defer tagRows.Close()
-		for tagRows.Next() {
-			var tag string
-			tagRows.Scan(&tag)
-			pd.Tags = append(pd.Tags, tag)
-		}
-	}
-
-	// Test Cases
-	tcRows, err := s.db.QueryContext(ctx, `SELECT id, input, expected_output FROM test_cases WHERE problem_id = $1`, pd.ID)
-	if err == nil {
-		defer tcRows.Close()
-		for tcRows.Next() {
-			var tc TestCase
-			tcRows.Scan(&tc.ID, &tc.Input, &tc.ExpectedOutput)
-			pd.TestCases = append(pd.TestCases, tc)
-		}
-	}
-
-	// Limits
-	limitRows, err := s.db.QueryContext(ctx, `SELECT language, time_limit_ms, memory_limit_kb FROM limits WHERE problem_id = $1`, pd.ID)
-	if err == nil {
-		defer limitRows.Close()
-		for limitRows.Next() {
-			var l Limits
-			l.ProblemID = pd.ID
-			limitRows.Scan(&l.Language, &l.TimeLimitMS, &l.MemoryLimitKB)
-			pd.Limits = append(pd.Limits, l)
-		}
-	}
-
-	return &pd, nil
 }
 
 func (s *serviceImpl) RunCode(ctx context.Context, userID, problemID int, language Language, code string, testCases []TestCase) (int, error) {

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -66,6 +67,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), ContextUserIDKey, int(userIDFloat))
 		ctx = context.WithValue(ctx, ContextRoleKey, roleStr)
+
+		fmt.Println("Auth middleware: ", int(userIDFloat), roleStr)
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -75,6 +79,7 @@ func AdminOnlyMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Retrieve role from context (set by AuthMiddleware)
 		roleStr, ok := r.Context().Value(ContextRoleKey).(string)
+		fmt.Println("Admin only middleware: ", ok, roleStr)
 		if !ok || roleStr != "admin" {
 			http.Error(w, "unauthorized: insufficient role", http.StatusUnauthorized)
 			return

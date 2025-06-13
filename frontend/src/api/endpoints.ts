@@ -24,6 +24,9 @@ export const signup = (data: SignupPayload) =>
 export const login = (data: LoginPayload) =>
     axios.post<OkResponse>('/login', data);
 
+export const logout = () =>
+    axios.post<OkResponse>('/logout');
+
 // Profile
 export const getCurrentUser = () =>
     axios.get<User>(`/me`);
@@ -35,14 +38,24 @@ export const getProfile = (username: string) =>
 export const getProblems = () =>
     axios.get<ProblemInfo[]>('/problems');
 
+export const adminGetProblems = () =>
+    axios.get<ProblemInfo[]>('/problem-list');
+
 export const createProblem = (data: ProblemDetail) =>
+    axios.post<IdResponse>('/problems', data);
+
+// TODO: Remove/Update this
+export const deleteProblem = (data: ProblemDetail) =>
     axios.post<IdResponse>('/problems', data);
 
 export const getProblemBySlug = (slug: string) =>
     axios.get<ProblemDetail>(`/problem/${slug}`);
 
-export const updateProblem = (id: number, data: ProblemDetail) =>
-    axios.put<OkResponse>(`/problems/${id}`, data);
+export const adminGetProblemBySlug = (slug: string) =>
+    axios.get<ProblemDetail>(`/problem-list/${slug}`);
+
+export const updateProblem = (data: ProblemDetail) =>
+    axios.put<OkResponse>(`/problems/${data.ID}`, data);
 
 // Submissions
 export const submitSolution = (data: SubmissionPayload) =>

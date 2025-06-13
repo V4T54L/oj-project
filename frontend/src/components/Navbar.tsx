@@ -1,17 +1,30 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { logout } from "../api/endpoints"
 import type { User } from '../types';
 
 type NavbarProps = {
     user: User | undefined;
+    getUserProfile: () => void;
 };
 
-const Navbar: React.FC<NavbarProps> = ({ user }) => {
+const Navbar: React.FC<NavbarProps> = ({ user, getUserProfile }) => {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        console.log('Logging out...');
-        navigate('/');
+        ; (
+            async () => {
+
+                console.log('Logging out...');
+                try {
+                    await logout();
+                    navigate('/problems');
+                    // getUserProfile();
+                } catch (err) {
+                    console.log("Error: ", err)
+                }
+            }
+        )()
     };
 
     const handleProfileClick = () => {
@@ -43,6 +56,15 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                     >
                         Contests
                     </NavLink>
+
+                    <NavLink
+                        to="/admin/problems"
+                        className={({ isActive }) =>
+                            `text-sm font-medium ${isActive ? 'text-blue-600' : 'text-gray-700 hover:text-blue-500'}`
+                        }
+                    >
+                        Admin
+                    </NavLink>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -65,17 +87,17 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                     ) : (
                         <>
                             <NavLink
-                                to="/login"
+                                to="/auth"
                                 className="text-sm text-gray-700 hover:text-blue-600"
                             >
-                                Login
+                                Auth
                             </NavLink>
-                            <NavLink
-                                to="/signup"
+                            {/* <NavLink
+                                to="/auth"
                                 className="bg-blue-600 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-700"
                             >
                                 Sign Up
-                            </NavLink>
+                            </NavLink> */}
                         </>
                     )}
                 </div>

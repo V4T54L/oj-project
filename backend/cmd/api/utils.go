@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -33,4 +35,24 @@ func setAuthCookie(w http.ResponseWriter, token string) {
 
 func GetContestProblemKey(contestId, problemId int) string {
 	return fmt.Sprintf("%d:%d", contestId, problemId)
+}
+
+func CreateSlug(input string) string {
+	// Remove special characters
+	reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+	if err != nil {
+		panic(err)
+	}
+	processedString := reg.ReplaceAllString(input, " ")
+
+	// Remove leading and trailing spaces
+	processedString = strings.TrimSpace(processedString)
+
+	// Replace spaces with dashes
+	slug := strings.ReplaceAll(processedString, " ", "-")
+
+	// Convert to lowercase
+	slug = strings.ToLower(slug)
+
+	return slug
 }

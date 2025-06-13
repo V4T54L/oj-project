@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'user';
-export type ProblemStatus = 'active' | 'inactive';
+export type ProblemStatus = 'draft' | 'validate' | 'active' | 'rejected' | 'archieved';
 export type SubmissionStatus = 'pending' | 'accepted' | 'rejected';
 export type ContestStatus = 'upcoming' | 'ongoing' | 'finished';
 export type Language = 'python' | 'cpp' | 'java' | 'javascript';
@@ -22,12 +22,20 @@ export interface ProblemInfo {
     Slug: string;
     Tags: string[];
     Difficulty: Difficulty;
+    Status: ProblemStatus;
 }
 
 export interface TestCase {
     ID: number;
     Input: string;
     ExpectedOutput: string;
+}
+
+export interface ProblemExample {
+    ID: number;
+    Input: string;
+    ExpectedOutput: string;
+    Explanation: string;
 }
 
 export interface Limits {
@@ -50,6 +58,7 @@ export interface ProblemDetail {
     SolutionLanguage: Language;
     SolutionCode: string;
     TestCases: TestCase[];
+    Examples: ProblemExample[];
     Limits: Limits[];
     FailureReason: string;
 }
@@ -69,7 +78,7 @@ export interface Submission {
     UserID: number;
     ContestID: number;
     Language: Language;
-    Code: string;
+    Code: string; w
     Status: SubmissionStatus;
     Message: string;
     Results: TestResult[];

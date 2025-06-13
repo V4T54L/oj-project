@@ -27,6 +27,7 @@ type ProblemInfo struct {
 	Tags       []string
 	Difficulty Difficulty
 	Slug       string
+	Status     string
 }
 
 type ProblemExample struct {
@@ -62,6 +63,7 @@ type ProblemDetail struct {
 	SolutionLanguage Language
 	SolutionCode     string
 	TestCases        []TestCase
+	Examples         []ProblemExample
 	Limits           []Limits
 	FailureReason    *string // in case failed to validate
 }
@@ -183,9 +185,9 @@ type CachePoints struct {
 }
 
 type ContestSolvedProblems struct {
-	ContestID int
-	UserID int
-	ProblemID int
-	SolvedAt int
+	ContestID  int
+	UserID     int
+	ProblemID  int
+	SolvedAt   int
 	ScoreDelta int
 }

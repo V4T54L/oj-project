@@ -49,7 +49,7 @@ const ContestDetailPage: React.FC = () => {
                             className="border rounded px-4 py-3 flex justify-between items-center bg-white hover:bg-gray-50"
                         >
                             <div>
-                                <Link to={`/contest/problem/${problem.Slug}`} className="text-blue-600 hover:underline text-lg font-medium">
+                                <Link to={`/contest/${contestId}/problem/${problem.Slug}`} className="text-blue-600 hover:underline text-lg font-medium">
                                     {problem.Title}
                                 </Link>
                                 <div className="text-sm text-gray-600 flex gap-2 mt-1">

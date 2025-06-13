@@ -25,7 +25,7 @@ const ProblemDetailPage: React.FC = () => {
 
   useEffect(() => {
     const fetchDiscussions = async () => {
-      if(!problem) return; 
+      if (!problem) return;
       try {
         const response = await getDiscussions(problem.ID);
         setDiscussions(response.data);
@@ -48,7 +48,7 @@ const ProblemDetailPage: React.FC = () => {
         setProblem(res.data);
         setCode(res.data.SolutionCode || '');
         setLanguage(res.data.SolutionLanguage || 'python');
-        setTestCases(res.data.TestCases);
+        setTestCases(res.data.Examples);
       })
       .catch(() => {
         setProblem(null);

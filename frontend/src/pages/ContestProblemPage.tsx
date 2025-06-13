@@ -6,7 +6,7 @@ import Editor from '@monaco-editor/react';
 import clsx from 'clsx';
 
 const ContestProblemPage: React.FC = () => {
-    const { slug } = useParams<{ slug: string }>();
+    const { contestId } = useParams<{ contestId: string }>();
     const [contest, setContest] = useState<Contest | null>(null);
     const [loading, setLoading] = useState(true);
     const [language, setLanguage] = useState<Language>('python');
@@ -21,10 +21,11 @@ const ContestProblemPage: React.FC = () => {
     const [problems, setProblems] = useState<ContestProblem[]>([]);
 
     useEffect(() => {
+        console.log("Contest ID: ", contestId)
         const fetchContestDetails = async () => {
-            if (!contestSlug) return;
+            if (!contestId) return;
             try {
-                const contestResponse = await getProblemBySlug(contestSlug);
+                const contestResponse = await getContestById(contestId);
                 setContest(contestResponse.data);
             } catch (error) {
                 console.error("Error fetching contest details", error);
@@ -34,7 +35,7 @@ const ContestProblemPage: React.FC = () => {
         };
 
         fetchContestDetails();
-    }, [contestSlug]);
+    }, [contestId]);
 
     useEffect(() => {
         const fetchContestProblems = async () => {

@@ -6,7 +6,11 @@ import { signup, login } from '../api/endpoints';
 import type { SignupPayload, LoginPayload } from '../types';
 import { useNavigate } from 'react-router-dom';
 
-const AuthPage: React.FC = () => {
+type AuthPageProps = {
+    getUserProfile: () => void
+}
+
+const AuthPage: React.FC<AuthPageProps> = ({ getUserProfile }) => {
     const [isSignup, setIsSignup] = useState(false);
     const [serverError, setServerError] = useState('');
     const navigate = useNavigate();
@@ -34,6 +38,7 @@ const AuthPage: React.FC = () => {
                 await login(loginData);
                 navigate('/problems');
             }
+            getUserProfile();
         } catch (err) {
             console.log("Error: ", err)
             // setServerError(err.response?.data?.message || 'Something went wrong.');

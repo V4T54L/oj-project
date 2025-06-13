@@ -1,7 +1,7 @@
 -- Users Table
 INSERT INTO users (username, hashed_password, email, role, rating) VALUES
 ('john_doe', 'pass_hash', 'john@example.com', 'user', 1500),
-('admin_user', 'pass_hash', 'admin@example.com', 'admin', 2000),
+('admin', 'pass_hash', 'admin@example.com', 'admin', 2000),
 ('alice', 'pass_hash', 'alice@example.com', 'user', 1800),
 ('bob', 'pass_hash', 'bob@example.com', 'user', 1600);
 
