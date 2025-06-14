@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getProblems, deleteProblem } from '../api/endpoints';
+import { adminGetProblems, deleteProblem } from '../api/endpoints';
 import type { ProblemInfo } from '../types';
 import { Link } from 'react-router-dom';
 import { Plus as FaPlus, Edit as FaEdit, Trash as FaTrash, Search as FaSearch, Award as FaTimes, Ham as FaSort, Award as FaSortUp, Apple as FaSortDown } from 'lucide-react';
@@ -30,7 +30,7 @@ const AdminProblemPage: React.FC = () => {
         const fetchProblems = async () => {
             try {
                 setLoading(true);
-                const response = await getProblems();
+                const response = await adminGetProblems();
                 setProblems(response.data);
                 setFilteredProblems(response.data);
                 setError(null);

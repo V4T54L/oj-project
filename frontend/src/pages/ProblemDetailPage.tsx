@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getProblemBySlug, runCode, submitSolution, getSubmission, getDiscussions, voteDiscussion, createDiscussion } from '../api/endpoints';
 import type { ProblemDetail, Language, RunCodePayload, SubmissionPayload, TestCase, Submission, Discussion, DiscussionComment, AddVotePayload } from '../types';
@@ -45,9 +45,14 @@ const ProblemDetailPage: React.FC = () => {
     // Fetch Problem Details
     getProblemBySlug(slug)
       .then((res) => {
-        setProblem(res.data);
-        setCode(res.data.SolutionCode || '');
-        setLanguage(res.data.SolutionLanguage || 'python');
+        const p = res.data;
+        p.Tags = p.Tags || [];
+        p.Limits = p.Limits || [];
+        p.Constraints = p.Constraints || [];
+        p.Examples = p.Examples || [];
+        setProblem(p);
+        setCode('');
+        setLanguage('python');
         setTestCases(res.data.Examples);
       })
       .catch(() => {
@@ -68,15 +73,63 @@ const ProblemDetailPage: React.FC = () => {
   }, [slug, activeTab]);
 
   const handleRun = async () => {
-    // Your handleRun function logic
+    try {
+      const payload: RunCodePayload = {
+        ProblemID: problem?.id,
+        Language: language,
+        Code: code,
+        Cases: testCases,
+      }
+      const response = await runCode(payload);
+      const runID = response.run_id;
+      pollForResults(runID);
+    } catch (error) {
+      console.error("Error initiating the run", error);
+    }
   };
 
   const handleSubmit = async () => {
     // Your handleSubmit function logic
+    try {
+      const payload: SubmissionPayload = {
+        ProblemID: problem?.id,
+        Language: language,
+        Code: code,
+      }
+      const response = await runCode(payload);
+      const submissionID = response.submission_id;
+      pollForResults(submissionID);
+    } catch (error) {
+      console.error("Error submitting the code", error);
+    }
   };
+
+  const pollForResults = useCallback(async (runId: number) => {
+    const intervalId = setInterval(async () => {
+      if (currentRunId.current <= 0) {
+        clearInterval(intervalId); // Stop polling if no active run
+        return;
+      }
+
+      try {
+        const fetchedResults = await getSubmissionResult(runId);
+        if (fetchedResults && fetchedResults.Status != "pending") {
+          // setResults(fetchedResults);
+          setSummary(fetchedResults);
+          currentRunId.current = 0; // Stop polling once results are obtained
+          clearInterval(intervalId); // Clear the polling interval
+          setIsRunning(false); // Stop the running state
+        }
+      } catch (error) {
+        console.error("Error fetching run results:", error);
+      }
+    }, 2000); // Poll every 2 seconds
+  }, []);
+
 
   const handleCreateDiscussion = async (newDiscussion: Discussion) => {
     try {
+      newDiscussion.ID = problem.ID;
       const response = await createDiscussion(newDiscussion);
       setDiscussions([...discussions, { ...newDiscussion, ID: response.data.id }]);
     } catch (error) {
@@ -86,6 +139,7 @@ const ProblemDetailPage: React.FC = () => {
 
   const handleUpdateDiscussion = async (updatedDiscussion: Discussion) => {
     try {
+      updatedDiscussion.ID = problem.ID;
       await updateDiscussion(updatedDiscussion);
       setDiscussions(discussions.map(d =>
         d.ID === updatedDiscussion.ID ? updatedDiscussion : d
@@ -163,6 +217,8 @@ const ProblemDetailPage: React.FC = () => {
           handleRun={handleRun}
           handleSubmit={handleSubmit}
           running={running}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
           submitting={submitting}
           output={output}
         />

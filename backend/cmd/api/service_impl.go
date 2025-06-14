@@ -183,7 +183,7 @@ func (s *serviceImpl) AdminGetProblemBySlug(ctx context.Context, slug string) (*
 		return nil, fmt.Errorf("failed to get problem by slug %q: %w", slug, err)
 	}
 
-	if constraints != nil {
+	if constraints != nil && len(*constraints) > 0 {
 		pd.Constraints = strings.Split(*constraints, "\n")
 	}
 
@@ -352,7 +352,7 @@ func (s *serviceImpl) GetProblemBySlug(ctx context.Context, slug string) (*Probl
 	if err != nil {
 		return nil, fmt.Errorf("failed to get problem by slug: %w", err)
 	}
-	if constraints != nil {
+	if constraints != nil && len(*constraints) > 0 {
 		pd.Constraints = strings.Split(*constraints, "\n")
 	}
 
@@ -583,7 +583,7 @@ func isDuplicateErr(err error) bool {
 }
 
 func (s *serviceImpl) UpdateProblemByID(ctx context.Context, id int, problem *ProblemDetail) error {
-	const query = `
+	const problemQuery = `
 		UPDATE problems
 		SET title = $1,
 			description = $2,
@@ -598,15 +598,86 @@ func (s *serviceImpl) UpdateProblemByID(ctx context.Context, id int, problem *Pr
 	ctx, cancel := context.WithTimeout(ctx, maxQueryTime)
 	defer cancel()
 
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
 	constraints := strings.Join(problem.Constraints, "\n")
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = tx.ExecContext(ctx, problemQuery,
 		problem.Title, problem.Description, constraints,
 		problem.Status, problem.SolutionLanguage, problem.SolutionCode,
 		problem.FailureReason, id,
 	)
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to update problem: %w", err)
+	}
+
+	// Delete and insert tags
+	if _, err = tx.ExecContext(ctx, `DELETE FROM problem_tags WHERE problem_id = $1`, id); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete tags: %w", err)
+	}
+	for _, tag := range problem.Tags {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO problem_tags (problem_id, tag) VALUES ($1, $2)`, id, tag); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to insert tag: %w", err)
+		}
+	}
+
+	// Delete and insert examples
+	if _, err = tx.ExecContext(ctx, `DELETE FROM problem_examples WHERE problem_id = $1`, id); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete examples: %w", err)
+	}
+	for _, ex := range problem.Examples {
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO problem_examples (problem_id, input, expected_output, explanation)
+			VALUES ($1, $2, $3, $4)
+		`, id, ex.Input, ex.ExpectedOutput, ex.Explanation)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to insert example: %w", err)
+		}
+	}
+
+	// Delete and insert test cases
+	if _, err = tx.ExecContext(ctx, `DELETE FROM test_cases WHERE problem_id = $1`, id); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete test cases: %w", err)
+	}
+	for _, tc := range problem.TestCases {
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO test_cases (problem_id, input, expected_output)
+			VALUES ($1, $2, $3)
+		`, id, tc.Input, tc.ExpectedOutput)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to insert test case: %w", err)
+		}
+	}
+
+	// Delete and insert limits
+	if _, err = tx.ExecContext(ctx, `DELETE FROM limits WHERE problem_id = $1`, id); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to delete limits: %w", err)
+	}
+	for _, lim := range problem.Limits {
+		_, err = tx.ExecContext(ctx, `
+			INSERT INTO limits (problem_id, language, time_limit_ms, memory_limit_kb)
+			VALUES ($1, $2, $3, $4)
+		`, id, lim.Language, lim.TimeLimitMS, lim.MemoryLimitKB)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to insert limit: %w", err)
+		}
+	}
+
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
 }

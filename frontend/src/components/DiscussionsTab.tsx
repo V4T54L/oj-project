@@ -13,7 +13,7 @@ const DiscussionsTab: React.FC<{ discussions: Discussion[]; onCreateDiscussion: 
     Votes: 0,
     Comments: []
   });
-
+ 
   const [newComment, setNewComment] = useState<string>('');
 
   // Handle modal open/close

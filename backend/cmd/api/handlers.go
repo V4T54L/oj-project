@@ -201,7 +201,7 @@ func (h *Handler) GetProblemBySlug(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetProblems(w http.ResponseWriter, r *http.Request) {
-	problems, err := h.service.AdminGetProblems(r.Context())
+	problems, err := h.service.GetProblems(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -451,12 +451,18 @@ func (h *Handler) GetLeaderboard(w http.ResponseWriter, r *http.Request) {
 // --- DISCUSSION ---
 
 func (h *Handler) CreateDiscussion(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value(ContextUserIDKey).(int)
+	if !ok {
+		http.Error(w, "unauthorized: missing user_id in context", http.StatusUnauthorized)
+		return
+	}
 	var d Discussion
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	d.AuthorID = userID
 	id, err := h.service.CreateDiscussion(r.Context(), &d)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

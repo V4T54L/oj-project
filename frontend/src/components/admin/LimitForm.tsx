@@ -1,23 +1,27 @@
 import React, { useState } from 'react';
-// import { Limits } from '../../types';
+import type { Limits, Language } from '../../types';
 
 interface LimitFormProps {
     limits: Limits[];
     setLimits: (limits: Limits[]) => void;
 }
 
+const languages: Language[] = ['python', 'cpp', 'java', 'javascript'];
+
 const LimitForm: React.FC<LimitFormProps> = ({ limits, setLimits }) => {
+    const [language, setLanguage] = useState<Language>('python');
     const [timeLimit, setTimeLimit] = useState(1000);
     const [memoryLimit, setMemoryLimit] = useState(256);
 
     const handleAddLimit = () => {
         const newLimit: Limits = {
             ProblemID: 0,
-            Language: 'python',
+            Language: language,
             TimeLimitMS: timeLimit,
             MemoryLimitKB: memoryLimit,
         };
         setLimits([...limits, newLimit]);
+        setLanguage('python'); // reset to default
         setTimeLimit(1000);
         setMemoryLimit(256);
     };
@@ -33,6 +37,20 @@ const LimitForm: React.FC<LimitFormProps> = ({ limits, setLimits }) => {
             <h3 className="text-sm font-medium text-gray-700">Problem Limits</h3>
 
             <div className="flex gap-4 items-end">
+                <div>
+                    <label className="block text-xs text-gray-500 mb-1">Language</label>
+                    <select
+                        className="w-full px-3 py-2 border rounded-md shadow-sm"
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value as Language)}
+                    >
+                        {languages.map((lang) => (
+                            <option key={lang} value={lang}>
+                                {lang}
+                            </option>
+                        ))}
+                    </select>
+                </div>
                 <div>
                     <label className="block text-xs text-gray-500 mb-1">Time Limit (ms)</label>
                     <input
@@ -95,6 +113,5 @@ const LimitForm: React.FC<LimitFormProps> = ({ limits, setLimits }) => {
         </div>
     );
 };
-
 
 export default LimitForm;

@@ -23,6 +23,7 @@ const App = () => {
       setUser(res.data)
     } catch (err) {
       console.log("Error: ", err)
+      setUser()
       // setServerError(err.response?.data?.message || 'Something went wrong.');
     }
   };
@@ -34,9 +35,9 @@ const App = () => {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50 text-gray-900">
-        <Navbar user={user} />
+        <Navbar user={user} getUserProfile={getCurrentUserProfile} />
         <Routes>
-          <Route path="/" element={<Navigate to="/problems" getUserProfile={getCurrentUserProfile} />} />
+          <Route path="/" element={<Navigate to="/problems" />} />
           <Route path="/auth" element={<AuthPage getUserProfile={getCurrentUserProfile} />} />
           <Route path="/problems" element={<ProblemListPage />} />
           <Route path="/problem/:slug" element={<ProblemDetailPage />} />

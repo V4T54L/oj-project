@@ -18,8 +18,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, getUserProfile }) => {
                 console.log('Logging out...');
                 try {
                     await logout();
+                    getUserProfile();
                     navigate('/problems');
-                    // getUserProfile();
                 } catch (err) {
                     console.log("Error: ", err)
                 }
@@ -56,15 +56,17 @@ const Navbar: React.FC<NavbarProps> = ({ user, getUserProfile }) => {
                     >
                         Contests
                     </NavLink>
-
-                    <NavLink
-                        to="/admin/problems"
-                        className={({ isActive }) =>
-                            `text-sm font-medium ${isActive ? 'text-blue-600' : 'text-gray-700 hover:text-blue-500'}`
-                        }
-                    >
-                        Admin
-                    </NavLink>
+                    {
+                        user?.Role == "admin" &&
+                        <NavLink
+                            to="/admin/problems"
+                            className={({ isActive }) =>
+                                `text-sm font-medium ${isActive ? 'text-blue-600' : 'text-gray-700 hover:text-blue-500'}`
+                            }
+                        >
+                            Admin
+                        </NavLink>
+                    }
                 </div>
 
                 <div className="flex items-center gap-4">

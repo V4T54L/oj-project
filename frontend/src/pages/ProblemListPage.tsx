@@ -57,7 +57,7 @@ const ProblemListPage: React.FC = () => {
                                         <Link to={`/problem/${problem.Slug}`}>{problem.Title}</Link>
                                     </td>
                                     <td className="px-4 py-2 space-x-1">
-                                        {problem.Tags.map((tag) => (
+                                        {problem.Tags?.map((tag) => (
                                             <span
                                                 key={tag}
                                                 className="inline-block text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded"
